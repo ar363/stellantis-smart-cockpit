@@ -1,7 +1,8 @@
 """
 Occupant-left-behind: after a simulated "ignition off" (toggled from the
 dashboard's demo controls, since there's no real ignition signal on a
-laptop), if presence is still detected once a timer elapses, fire an alarm.
+laptop), if presence is still detected once a timer elapses, fire an alarm
+and repeat it every 1.5s while the conditions persist.
 
 Reported as an `alarm` event with reason="occupant_left_behind" rather than
 a new event type, so it renders on the existing dashboard escalation card
@@ -11,24 +12,27 @@ without needing a contract change.
 import time
 
 TIMER_S = 8.0  # demo-scale; a real car would use minutes
+REPEAT_S = 1.5  # repeat alarm every 1.5s while occupant is still present
 
 
 class OccupantWatch:
     def __init__(self):
         self._ignition_off_at = None
-        self._fired = False
+        self._last_alarm_emit = 0.0
 
     def tick(self, state, control, emit):
         ignition_off = bool(control.get("ignition_off"))
 
         if not ignition_off:
             self._ignition_off_at = None
-            self._fired = False
+            self._last_alarm_emit = 0.0
             return
 
         if self._ignition_off_at is None:
             self._ignition_off_at = time.monotonic()
 
-        if not self._fired and time.monotonic() - self._ignition_off_at >= TIMER_S and state.get("present"):
+        now = time.monotonic()
+        if (now - self._ignition_off_at >= TIMER_S and state.get("present") and
+                now - self._last_alarm_emit >= REPEAT_S):
             emit({"type": "alarm", "reason": "occupant_left_behind"})
-            self._fired = True
+            self._last_alarm_emit = now
