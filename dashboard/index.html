@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Cockpit — Dashboard</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="ambient-bg"></div>
+
+  <div id="alarm-overlay"></div>
+
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span>SMART COCKPIT</span>
+    </div>
+    <div id="conn-badge" class="badge mock">MOCK DATA</div>
+    <div id="clock"></div>
+  </header>
+
+  <main id="grid">
+    <!-- Driver avatar + presence -->
+    <section class="card" id="avatar-card">
+      <div class="card-title">Driver</div>
+      <div id="avatar">🙂</div>
+      <div id="avatar-name">No driver</div>
+      <div id="avatar-emotion">—</div>
+    </section>
+
+    <!-- Status tiles -->
+    <section class="card" id="tiles-card">
+      <div class="card-title">Status</div>
+      <div id="tiles">
+        <div class="tile" id="tile-present">
+          <div class="tile-label">Present</div>
+          <div class="tile-value">—</div>
+        </div>
+        <div class="tile" id="tile-drowsy">
+          <div class="tile-label">Drowsy</div>
+          <div class="tile-value">—</div>
+        </div>
+        <div class="tile" id="tile-distracted">
+          <div class="tile-label">Distracted</div>
+          <div class="tile-value">—</div>
+        </div>
+        <div class="tile" id="tile-eyes">
+          <div class="tile-label">Eyes on Road</div>
+          <div class="tile-value">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Personalization -->
+    <section class="card" id="profile-card">
+      <div class="card-title">Personalization</div>
+      <div class="profile-row">
+        <span class="profile-label">Theme</span>
+        <span id="profile-theme-swatch" class="swatch"></span>
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Temperature</span>
+        <span id="profile-temp">—</span>
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Playlist</span>
+        <span id="profile-playlist">—</span>
+      </div>
+    </section>
+
+    <!-- Notifications from logic -->
+    <section class="card" id="notif-card">
+      <div class="card-title">Notifications</div>
+      <ul id="notif-list"><li class="notif-empty">No notifications</li></ul>
+    </section>
+
+    <!-- Escalation banner -->
+    <section class="card" id="escalation-card" hidden>
+      <div class="card-title">Escalation</div>
+      <div id="escalation-text"></div>
+    </section>
+
+    <!-- Pull-over animation -->
+    <section class="card" id="pullover-card" hidden>
+      <div class="card-title">Pull-Over Assist</div>
+      <canvas id="pullover-canvas" width="480" height="220"></canvas>
+      <div id="pullover-banner">Pulling over — driver unresponsive</div>
+    </section>
+  </main>
+
+  <footer id="demo-controls">
+    <div class="demo-title">Demo Controls</div>
+    <div class="demo-buttons">
+      <button data-action="toggle-present">Toggle Present</button>
+      <button data-action="toggle-drowsy">Toggle Drowsy</button>
+      <button data-action="toggle-distracted">Toggle Distracted</button>
+      <button data-action="cycle-emotion">Cycle Emotion</button>
+      <button data-action="switch-profile">Switch Profile</button>
+      <button data-action="fire-alarm">Fire Alarm Event</button>
+      <button data-action="fire-pullover">Fire Pull-Over Event</button>
+      <button data-action="fire-hold">Fire Notification Hold</button>
+      <button data-action="fire-release">Fire Notification Release</button>
+      <button data-action="toggle-auto" id="auto-toggle-btn">Pause Auto-Demo</button>
+    </div>
+  </footer>
+
+  <script src="mock.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
