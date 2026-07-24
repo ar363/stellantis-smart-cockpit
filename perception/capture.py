@@ -64,6 +64,7 @@ DISTRACTION_YAW_DEG = 28.0
 DISTRACTION_PITCH_DEG = 22.0
 DISTRACTION_CONSEC_FRAMES = 15  # ~1.2s at 12fps: a held look-away, not a quick glance
 BASELINE_CALIBRATION_FRAMES = 20
+BASELINE_ADAPT_RATE = 0.02  # EMA pull per frame; ~a few seconds to absorb sustained drift, too slow to mask a real quick look-away
 PRESENCE_GRACE_S = 0.6  # survive brief missed detections without flickering "present"
 EMOTION_SMOOTHING_FRAMES = 15
 FACE_ID_SMOOTHING_FRAMES = 15
@@ -274,6 +275,14 @@ def main():
                         or abs(pitch - baseline_pitch) > DISTRACTION_PITCH_DEG
                     )
                     distracted = distracted_flag.update(off_axis)
+
+                    if baseline_locked:
+                        # Slow drift toward wherever the head actually rests, so a one-time
+                        # miscalibration (or the driver settling into a new posture) doesn't
+                        # leave "distracted" latched forever -- it self-corrects in a few
+                        # seconds instead of only resetting when the face fully drops out.
+                        baseline_yaw += (yaw - baseline_yaw) * BASELINE_ADAPT_RATE
+                        baseline_pitch += (pitch - baseline_pitch) * BASELINE_ADAPT_RATE
 
                     emotion_history.append(classify_emotion(ear, mar, brow, yawning))
                     emotion = Counter(emotion_history).most_common(1)[0][0]

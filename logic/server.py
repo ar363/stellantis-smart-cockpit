@@ -59,7 +59,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.wfile.write(data)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass  # client disconnected mid-response (tab closed/reload/poll superseded) -- nothing to do
 
     def _send_json(self, payload, status=200):
         self._send_bytes(json.dumps(payload).encode("utf-8"), "application/json", status)
