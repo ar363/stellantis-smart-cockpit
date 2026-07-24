@@ -35,6 +35,12 @@ _POSE_MODEL_POINTS = np.array(
 )
 _POSE_LANDMARKS = [1, 152, 33, 263, 61, 291]
 
+# ---- Hand landmark indices (MediaPipe HandLandmarker topology, 21 points) ----
+_WRIST = 0
+_THUMB_TIP, _THUMB_IP = 4, 3
+_MIDDLE_MCP = 9
+_FINGER_TIPS_PIPS = [(8, 6), (12, 10), (16, 14), (20, 18)]  # index, middle, ring, pinky
+
 
 def _dist(a, b):
     return float(np.hypot(a[0] - b[0], a[1] - b[1]))
@@ -167,5 +173,37 @@ def classify_emotion(ear, mar, brow, yawn_active):
     if mar > 0.55 or brow < 0.18:
         return "stressed"
     return "calm"
+
+
+def classify_gesture(points):
+    """Only two gestures, on purpose: 'peace' and 'thumbs_up' (song
+    forward/backward). Fewer shapes to tell apart from a single frame means
+    far fewer false positives than a bigger vocabulary (open_palm/fist/wave/
+    etc all resemble each other in a noisy webcam frame). Extension is
+    judged by distance from the wrist rather than raw up/down position, so
+    it isn't limited to a perfectly upright hand. Anything that isn't
+    clearly one of these two returns None."""
+    wrist = points[_WRIST]
+
+    def extended(tip, pip):
+        return _dist(points[tip], wrist) > _dist(points[pip], wrist) * 1.15
+
+    index_up, middle_up, ring_up, pinky_up = (
+        extended(tip, pip) for tip, pip in _FINGER_TIPS_PIPS
+    )
+
+    if index_up and middle_up and not ring_up and not pinky_up:
+        return "peace"
+
+    if not index_up and not middle_up and not ring_up and not pinky_up:
+        thumb_tip, thumb_ip = points[_THUMB_TIP], points[_THUMB_IP]
+        thumb_out = _dist(thumb_tip, wrist) > _dist(thumb_ip, wrist) * 1.15
+        # Margin scaled to hand size so "up" isn't decided by a sub-pixel tie.
+        axis_margin = _dist(points[_MIDDLE_MCP], wrist) * 0.15
+        thumb_up = thumb_tip[1] < wrist[1] - axis_margin
+        if thumb_out and thumb_up:
+            return "thumbs_up"
+
+    return None
 
 

@@ -50,11 +50,11 @@ to exercise the real hold/release gating against `DriverState`, not to fake urge
   song, pause/play, call, confirm. Optional: if the packages aren't installed, this silently
   no-ops instead of crashing the rest of logic.
 - **Gesture control** (`gesture_policy.py`): perception (`capture.py --gestures`) publishes a
-  raw directional swipe to `shared/gesture.json` (movement only, no static hand-pose
-  classification -- that proved too ambiguous to be reliable). Maps `swipe_left` ->
-  `prev_track`, `swipe_right` -> `next_track`, `swipe_up` -> `toggle_playback`. No
-  gesture-based dismiss currently -- use the voice "dismiss"/"cancel alarm" command. Both
-  stretch inputs check `eyes_on_road` before acting, per the team contract.
+  hand pose to `shared/gesture.json` -- deliberately just two (`peace`, `thumbs_up`), each
+  held steady for a few frames before being reported, since a bigger vocabulary (swipes,
+  open palm, fist, wave, ...) kept misfiring. Maps `peace` -> `prev_track`, `thumbs_up` ->
+  `next_track`. No gesture-based dismiss currently -- use the voice "dismiss"/"cancel alarm"
+  command. Both stretch inputs check `eyes_on_road` before acting, per the team contract.
 - `dismiss_alarm` resets the escalation countdown so a fresh alarm/pull-over cycle can occur,
   and also emits `pull_over_cancelled` if a `pull_over` had already fired, so the dashboard
   retracts the pull-over UI instead of leaving it stuck on screen.

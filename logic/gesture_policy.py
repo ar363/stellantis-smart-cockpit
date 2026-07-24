@@ -5,20 +5,18 @@ allowed to turn that into an action, and only when the driver's eyes are on
 the road, per the team contract ("both must check eyes_on_road ... and
 ignore input if false").
 
-Movement-only: perception reports a raw directional swipe (or None), never
-a static hand pose -- pose classification from a single frame proved too
-ambiguous and fired on gestures it shouldn't have.
+Deliberately just two static poses -- a bigger vocabulary (swipes, open
+palm, fist, wave, ...) kept misfiring in practice. Peace/thumbs_up are
+visually distinct enough to tell apart reliably from a single frame.
 
 Gesture mappings:
-  swipe_left  -> prev_track
-  swipe_right -> next_track
-  swipe_up    -> toggle_playback
+  peace      -> prev_track
+  thumbs_up  -> next_track
 """
 
 GESTURE_COMMANDS = {
-    "swipe_left": "prev_track",
-    "swipe_right": "next_track",
-    "swipe_up": "toggle_playback",
+    "peace": "prev_track",
+    "thumbs_up": "next_track",
 }
 
 

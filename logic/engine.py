@@ -100,6 +100,7 @@ def main():
     current_state = {"eyes_on_road": True}
     last_dismiss_at = None
     last_song_action_at = None
+    last_gesture_val = None
     last_emotion = "__unset__"
 
     EMOTION_PLAYLISTS = {
@@ -217,8 +218,12 @@ def main():
                 gesture_doc = read_json(GESTURE_PATH, default=None)
                 gesture_val = (gesture_doc or {}).get("gesture")
                 gestures.tick(state, gesture_doc, on_command)
-                if gesture_val:
+                # Perception holds a detected gesture steady for a few hundred ms so this
+                # poll doesn't miss it -- only toast once per gesture, not once per poll
+                # while it's held.
+                if gesture_val and gesture_val != last_gesture_val:
                     emit({"type": "gesture_detected", "gesture": gesture_val})
+                last_gesture_val = gesture_val
 
             control = read_json(CONTROL_PATH, default={})
             occupant_watch.tick(current_state, control, emit)

@@ -285,15 +285,14 @@
     { t: 0, run: () => setPresent(false) },
     { t: 2000, run: () => setProfile("profile_1") },
     { t: 4000, run: () => cycleEmotion() },
-    { t: 5500, run: () => fireGesture("swipe_right") },
+    { t: 5500, run: () => fireGesture("thumbs_up") },
     { t: 9000, run: () => setDistracted(true) },
-    { t: 10500, run: () => fireGesture("swipe_left") },
+    { t: 10500, run: () => fireGesture("peace") },
     { t: 13000, run: () => setDistracted(false) },
     { t: 16000, run: () => setDrowsy(true) },
     { t: 24000, run: () => setDrowsy(false) },
     { t: 27000, run: () => setProfile("profile_2") },
     { t: 29000, run: () => cycleEmotion() },
-    { t: 32000, run: () => fireGesture("swipe_up") },
     { t: 34000, run: () => cycleEmotion() },
   ];
   const SCRIPT_LOOP_MS = 40000;
