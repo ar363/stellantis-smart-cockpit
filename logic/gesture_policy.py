@@ -10,17 +10,15 @@ a static hand pose -- pose classification from a single frame proved too
 ambiguous and fired on gestures it shouldn't have.
 
 Gesture mappings:
-  swipe_left  -> next_track
-  swipe_right -> prev_track
+  swipe_left  -> prev_track
+  swipe_right -> next_track
   swipe_up    -> toggle_playback
-  swipe_down  -> dismiss_alarm
 """
 
 GESTURE_COMMANDS = {
-    "swipe_left": "next_track",
-    "swipe_right": "prev_track",
+    "swipe_left": "prev_track",
+    "swipe_right": "next_track",
     "swipe_up": "toggle_playback",
-    "swipe_down": "dismiss_alarm",
 }
 
 

@@ -52,9 +52,9 @@ to exercise the real hold/release gating against `DriverState`, not to fake urge
 - **Gesture control** (`gesture_policy.py`): perception (`capture.py --gestures`) publishes a
   raw directional swipe to `shared/gesture.json` (movement only, no static hand-pose
   classification -- that proved too ambiguous to be reliable). Maps `swipe_left` ->
-  `next_track`, `swipe_right` -> `prev_track`, `swipe_up` -> `toggle_playback`, `swipe_down`
-  -> `dismiss_alarm`. Both stretch inputs check `eyes_on_road` before acting, per the team
-  contract.
+  `prev_track`, `swipe_right` -> `next_track`, `swipe_up` -> `toggle_playback`. No
+  gesture-based dismiss currently -- use the voice "dismiss"/"cancel alarm" command. Both
+  stretch inputs check `eyes_on_road` before acting, per the team contract.
 - `dismiss_alarm` resets the escalation countdown so a fresh alarm/pull-over cycle can occur,
   and also emits `pull_over_cancelled` if a `pull_over` had already fired, so the dashboard
   retracts the pull-over UI instead of leaving it stuck on screen.
