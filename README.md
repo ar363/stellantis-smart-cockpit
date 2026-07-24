@@ -1,10 +1,10 @@
-# Smart Cockpit (COC-04)
+# Smart Driver Monitoring System
 
 A real-time driver monitoring and safety system that uses only a laptop webcam to detect drowsiness, distraction, and emotion — then personalizes the cabin accordingly.
 
 ## Overview
 
-Smart Cockpit is a three-process architecture (perception, logic, bridge) that captures webcam frames at 12fps, runs MediaPipe-based facial analysis, and drives a live browser dashboard with safety alerts, face recognition, and emotion-based personalization. Built for a Stellantis hackathon, it demonstrates how a camera-only system can replicate features found in production ADAS platforms.
+Smart Driver Monitoring System is a three-process architecture (perception, logic, bridge) that captures webcam frames at 12fps, runs MediaPipe-based facial analysis, and drives a live browser dashboard with safety alerts, face recognition, and emotion-based personalization. Built for a Stellantis hackathon, it demonstrates how a camera-only system can replicate features found in production ADAS platforms.
 
 ## Architecture
 
