@@ -24,6 +24,7 @@
       + "Sensor-injection buttons above are disabled; Manage Profiles and Toggle Ignition Off still work.";
 
     window.Live.start();
+    window.Camera.start();
   } else {
     window.Mock.startMock(window.applyDriverState, window.applyLogicEvent);
   }

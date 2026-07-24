@@ -46,10 +46,13 @@ from vision import (  # noqa: E402
     brow_raise,
     classify_emotion,
     classify_gesture,
+    draw_face_overlay,
     face_bbox,
     head_pose,
     mouth_aspect_ratio,
 )
+
+FRIENDLY_NAME = {"profile_1": "Driver 1", "profile_2": "Driver 2"}
 
 # ---- Tunables (first-pass; recalibrate against your own webcam/lighting) ----
 EAR_DROWSY_THRESHOLD = 0.19
@@ -57,9 +60,9 @@ EAR_CLEAR_THRESHOLD = 0.23  # hysteresis: needs to recover past this to clear "d
 DROWSY_CONSEC_FRAMES = 10  # ~0.7-1s at 12fps
 YAWN_MAR_THRESHOLD = 0.55
 YAWN_CONSEC_FRAMES = 8
-DISTRACTION_YAW_DEG = 18.0
-DISTRACTION_PITCH_DEG = 15.0
-DISTRACTION_CONSEC_FRAMES = 8
+DISTRACTION_YAW_DEG = 28.0
+DISTRACTION_PITCH_DEG = 22.0
+DISTRACTION_CONSEC_FRAMES = 15  # ~1.2s at 12fps: a held look-away, not a quick glance
 BASELINE_CALIBRATION_FRAMES = 20
 PRESENCE_GRACE_S = 0.6  # survive brief missed detections without flickering "present"
 EMOTION_SMOOTHING_FRAMES = 15
@@ -275,9 +278,10 @@ def main():
                     emotion_history.append(classify_emotion(ear, mar, brow, yawning))
                     emotion = Counter(emotion_history).most_common(1)[0][0]
 
+                    bbox = face_bbox(points, w, h)
                     face_id = None
                     if recognizer_holder[0] is not None:
-                        x0, y0, x1, y1 = face_bbox(points, w, h)
+                        x0, y0, x1, y1 = bbox
                         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                         face_id = recognizer_holder[0].predict(gray[y0:y1, x0:x1])
                     face_id_history.append(face_id)
@@ -296,11 +300,12 @@ def main():
                         emotion=emotion,
                     )
 
+                    tag = FRIENDLY_NAME.get(smoothed_face_id, "Unrecognized driver")
+                    draw_face_overlay(frame, points, bbox, label=tag, alert=bool(drowsy or distracted))
+
                     if args.show:
-                        x0, y0, x1, y1 = face_bbox(points, w, h)
-                        cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 255, 0), 2)
-                        label = f"{smoothed_face_id or '?'} EAR={ear:.2f} yaw={yaw:.0f} pitch={pitch:.0f} {emotion}"
-                        cv2.putText(frame, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                        debug_line = f"EAR={ear:.2f} yaw={yaw:.0f} pitch={pitch:.0f} {emotion}"
+                        cv2.putText(frame, debug_line, (10, h - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
                 else:
                     if now - last_seen_ts > PRESENCE_GRACE_S:
                         state.update(present=False, face_id=None, drowsy=False, distracted=False, eyes_on_road=True)

@@ -11,6 +11,7 @@
   const avatarEl = document.getElementById("avatar");
   const avatarNameEl = document.getElementById("avatar-name");
   const avatarEmotionEl = document.getElementById("avatar-emotion");
+  const cameraLabelEl = document.getElementById("camera-label");
   const alarmOverlay = document.getElementById("alarm-overlay");
   const themeSwatch = document.getElementById("profile-theme-swatch");
   const tempEl = document.getElementById("profile-temp");
@@ -31,10 +32,14 @@
   function applyDriverState(state) {
     renderTiles(state);
     renderAvatar(state);
+    renderCameraLabel(state);
     applyAmbient(state.emotion);
-    setAlarmVisual(state.present && (state.drowsy || state.distracted));
+    const unsafe = state.present && (state.drowsy || state.distracted);
+    setAlarmVisual(unsafe);
+    if (!unsafe) {
+      hideEscalation(); // backend stops emitting "alarm" once safe again, but never tells us to clear it -- do it here
+    }
     if (!state.present) {
-      hideEscalation();
       hidePullover();
     }
   }
@@ -68,6 +73,17 @@
       ? "No driver"
       : PROFILE_LABEL[state.face_id] || "Unrecognized driver";
     avatarEmotionEl.textContent = state.present ? state.emotion : "—";
+  }
+
+  function renderCameraLabel(state) {
+    const live = window.Live && window.Live.isActive();
+    if (!live || !state.present) {
+      cameraLabelEl.hidden = true;
+      return;
+    }
+    cameraLabelEl.hidden = false;
+    cameraLabelEl.textContent = PROFILE_LABEL[state.face_id] || "Unrecognized driver";
+    cameraLabelEl.classList.toggle("alert", state.drowsy || state.distracted);
   }
 
   function applyAmbient(emotion) {

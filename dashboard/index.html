@@ -22,6 +22,17 @@
   </header>
 
   <main id="grid">
+    <!-- Driver cam: live feed with the perception overlay baked in, so it's
+         obvious at a glance which driver the model is currently reading -->
+    <section class="card" id="camera-card">
+      <div class="card-title">Driver Cam</div>
+      <div id="camera-frame">
+        <img id="camera-feed" alt="Driver camera feed" hidden />
+        <div id="camera-placeholder">Live backend required for camera feed</div>
+        <div id="camera-label" hidden></div>
+      </div>
+    </section>
+
     <!-- Driver avatar + presence -->
     <section class="card" id="avatar-card">
       <div class="card-title">Driver</div>
@@ -145,6 +156,7 @@
   <script src="app.js"></script>
   <script src="live.js"></script>
   <script src="enroll.js"></script>
+  <script src="camera.js"></script>
   <script src="boot.js"></script>
 </body>
 </html>

@@ -115,6 +115,54 @@ def face_bbox(points, frame_w, frame_h, margin=0.25):
     return x0, y0, x1, y1
 
 
+_OVERLAY_OK = (151, 220, 61)  # BGR, matches dashboard --ok (#3ddc97)
+_OVERLAY_ALERT = (94, 77, 255)  # BGR, matches dashboard --danger (#ff4d5e)
+
+
+def draw_face_overlay(frame, points, bbox, label=None, alert=False):
+    """Draws a lightweight AR-style face overlay (landmark dots, eye/mouth
+    contours, a bracket frame, and a name tag) directly onto `frame`. This is
+    what gets published to shared/preview.jpg, so the dashboard's driver-cam
+    feed reads as "the model is looking at this face" instead of a raw,
+    unannotated webcam frame."""
+    color = _OVERLAY_ALERT if alert else _OVERLAY_OK
+    x0, y0, x1, y1 = bbox
+
+    for x, y in points:
+        cv2.circle(frame, (int(x), int(y)), 1, color, -1, cv2.LINE_AA)
+
+    for eye in (LEFT_EYE, RIGHT_EYE):
+        pts = np.array([points[i] for i in eye], dtype=np.int32)
+        cv2.polylines(frame, [pts], True, (255, 255, 255), 1, cv2.LINE_AA)
+    mouth_pts = np.array(
+        [
+            points[MOUTH_CORNERS[0]],
+            points[MOUTH_TOP_BOTTOM[0]],
+            points[MOUTH_CORNERS[1]],
+            points[MOUTH_TOP_BOTTOM[1]],
+        ],
+        dtype=np.int32,
+    )
+    cv2.polylines(frame, [mouth_pts], True, (255, 255, 255), 1, cv2.LINE_AA)
+
+    corner = max(10, int(min(x1 - x0, y1 - y0) * 0.12))
+    for cx, cy, dx, dy in ((x0, y0, 1, 1), (x1, y0, -1, 1), (x0, y1, 1, -1), (x1, y1, -1, -1)):
+        cv2.line(frame, (cx, cy), (cx + dx * corner, cy), color, 2, cv2.LINE_AA)
+        cv2.line(frame, (cx, cy), (cx, cy + dy * corner), color, 2, cv2.LINE_AA)
+
+    if label:
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
+        pad = 6
+        tag_y1 = max(0, y0 - th - 2 * pad)
+        cv2.rectangle(frame, (x0, tag_y1), (x0 + tw + 2 * pad, tag_y1 + th + 2 * pad), color, -1)
+        cv2.putText(
+            frame, label, (x0 + pad, tag_y1 + th + pad // 2),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.55, (15, 15, 15), 1, cv2.LINE_AA,
+        )
+
+    return frame
+
+
 def classify_emotion(ear, mar, brow, yawn_active):
     """Rough calm/stressed/tired heuristic from landmark ratios -- explicitly
     a first pass per the team scope ('basic emotion classification from
