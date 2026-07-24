@@ -30,7 +30,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 from escalation import EscalationEngine  # noqa: E402
 from gesture_policy import GesturePolicy  # noqa: E402
 from notifications import NotificationEngine  # noqa: E402
-from occupant_watch import OccupantWatch  # noqa: E402
 from voice import VoiceListener  # noqa: E402
 
 PROFILES_PATH = Path(__file__).parent / "profiles.json"
@@ -93,7 +92,6 @@ def main():
 
     notifications = NotificationEngine()
     escalation = EscalationEngine()
-    occupant_watch = OccupantWatch()
     gestures = GesturePolicy()
 
     last_face_id = "__unset__"
@@ -226,7 +224,6 @@ def main():
                 last_gesture_val = gesture_val
 
             control = read_json(CONTROL_PATH, default={})
-            occupant_watch.tick(current_state, control, emit)
 
             # Dashboard's "Resume Driving" button (pull-over popup) posts a
             # fresh dismiss_alarm_at timestamp via /api/control -- treat it
