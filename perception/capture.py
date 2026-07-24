@@ -45,7 +45,6 @@ from vision import (  # noqa: E402
     average_ear,
     brow_raise,
     classify_emotion,
-    classify_gesture,
     draw_face_overlay,
     face_bbox,
     head_pose,
@@ -334,10 +333,7 @@ def main():
                     print(f"[perception] skipped a state publish (transient write failure): {exc}")
 
                 if hand_source is not None:
-                    hand_points, swipe_gesture = hand_source.process(frame)
-                    gesture = swipe_gesture
-                    if gesture is None and hand_points is not None:
-                        gesture = classify_gesture(hand_points)
+                    _hand_points, gesture = hand_source.process(frame)
                     try:
                         atomic_write_json(GESTURE_PATH, {"gesture": gesture, "timestamp": time.time()})
                     except OSError as exc:

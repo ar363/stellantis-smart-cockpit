@@ -284,10 +284,9 @@
   const SCRIPT = [
     { t: 0, run: () => setPresent(false) },
     { t: 2000, run: () => setProfile("profile_1") },
-    { t: 3500, run: () => fireGesture("thumbs_up") },
+    { t: 3500, run: () => fireGesture("swipe_down") },
     { t: 4000, run: () => cycleEmotion() },
     { t: 5500, run: () => fireGesture("swipe_right") },
-    { t: 6000, run: () => fireGesture("peace") },
     { t: 9000, run: () => setDistracted(true) },
     { t: 10500, run: () => fireGesture("swipe_left") },
     { t: 13000, run: () => setDistracted(false) },

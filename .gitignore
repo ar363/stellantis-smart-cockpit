@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.venv*/
 venv/
 
 # runtime IPC files (regenerated on every run, see shared/README.md)

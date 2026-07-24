@@ -5,20 +5,22 @@ allowed to turn that into an action, and only when the driver's eyes are on
 the road, per the team contract ("both must check eyes_on_road ... and
 ignore input if false").
 
-Gesture mappings (swipe-based for song control):
+Movement-only: perception reports a raw directional swipe (or None), never
+a static hand pose -- pose classification from a single frame proved too
+ambiguous and fired on gestures it shouldn't have.
+
+Gesture mappings:
   swipe_left  -> next_track
   swipe_right -> prev_track
   swipe_up    -> toggle_playback
-  open_palm   -> dismiss_alarm
-  peace       -> dismiss_alarm (alt)
+  swipe_down  -> dismiss_alarm
 """
 
 GESTURE_COMMANDS = {
     "swipe_left": "next_track",
     "swipe_right": "prev_track",
     "swipe_up": "toggle_playback",
-    "open_palm": "dismiss_alarm",
-    "peace": "dismiss_alarm",
+    "swipe_down": "dismiss_alarm",
 }
 
 

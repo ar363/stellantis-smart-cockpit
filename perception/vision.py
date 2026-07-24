@@ -35,11 +35,6 @@ _POSE_MODEL_POINTS = np.array(
 )
 _POSE_LANDMARKS = [1, 152, 33, 263, 61, 291]
 
-# ---- Hand landmark indices (MediaPipe HandLandmarker topology, 21 points) ----
-_WRIST = 0
-_THUMB_TIP, _THUMB_IP = 4, 3
-_FINGER_TIPS_PIPS = [(8, 6), (12, 10), (16, 14), (20, 18)]  # index, middle, ring, pinky
-
 
 def _dist(a, b):
     return float(np.hypot(a[0] - b[0], a[1] - b[1]))
@@ -174,38 +169,3 @@ def classify_emotion(ear, mar, brow, yawn_active):
     return "calm"
 
 
-def classify_gesture(points):
-    """Hackathon-grade gesture classifier. Detects: open_palm, thumbs_up,
-    thumbs_down, peace, fist, wave. Finger-extension is judged by distance
-    from the wrist rather than raw up/down position, so it isn't limited to
-    a perfectly upright hand -- still a first pass, not production."""
-    wrist = points[_WRIST]
-
-    def extended(tip, pip):
-        return _dist(points[tip], wrist) > _dist(points[pip], wrist) * 1.15
-
-    fingers = [extended(tip, pip) for tip, pip in _FINGER_TIPS_PIPS]
-    num_extended = sum(fingers)
-
-    thumb_tip, thumb_ip = points[_THUMB_TIP], points[_THUMB_IP]
-    thumb_out = _dist(thumb_tip, wrist) > _dist(thumb_ip, wrist) * 1.15
-    # Margin scaled to hand size (wrist-to-middle-knuckle) so "up" vs "down"
-    # isn't decided by a sub-pixel tie when the thumb is roughly level.
-    axis_margin = _dist(points[9], wrist) * 0.15
-    thumb_up = thumb_tip[1] < wrist[1] - axis_margin
-    thumb_down = thumb_tip[1] > wrist[1] + axis_margin
-
-    if num_extended >= 4:
-        return "open_palm"
-    if num_extended == 0:
-        if thumb_out and thumb_up:
-            return "thumbs_up"
-        if thumb_out and thumb_down:
-            return "thumbs_down"
-        return "fist"
-    if fingers[0] and fingers[1] and not fingers[2] and not fingers[3]:
-        return "peace"
-    if num_extended >= 2:
-        return "wave"
-
-    return None

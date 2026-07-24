@@ -44,16 +44,17 @@ to exercise the real hold/release gating against `DriverState`, not to fake urge
   toggle. After `TIMER_S` (8s, demo-scale) with it set and a driver still `present`, fires an
   `alarm` with `reason: "occupant_left_behind"` -- reuses the existing event type instead of
   adding a new one, so the dashboard needs no changes to render it.
-- **Voice commands** (`voice.py`, `--voice`): captures short clips via `sounddevice` (not
-  PyAudio -- much less painful to install on Windows) and transcribes with
-  `SpeechRecognition`'s free Google Web Speech API (needs internet). Recognized phrases map
-  to commands (`COMMANDS` list); currently only `dismiss_alarm` does anything (resets the
-  escalation timer). Optional: if the packages aren't installed, this silently no-ops instead
-  of crashing the rest of logic.
-- **Gesture control** (`gesture_policy.py`): perception (`capture.py --gestures`) publishes
-  raw hand gestures to `shared/gesture.json`; this maps `open_palm` -> `dismiss_alarm` and
-  `thumbs_up` -> `confirm`. Both stretch inputs check `eyes_on_road` before acting, per the
-  team contract.
+- **Voice commands** (`voice.py`, `--voice`): listens continuously via `SpeechRecognition` +
+  a PyAudio mic and transcribes with the free Google Web Speech API (needs internet).
+  Recognized phrases map to commands (`COMMANDS` list): dismiss/cancel alarm, next/previous
+  song, pause/play, call, confirm. Optional: if the packages aren't installed, this silently
+  no-ops instead of crashing the rest of logic.
+- **Gesture control** (`gesture_policy.py`): perception (`capture.py --gestures`) publishes a
+  raw directional swipe to `shared/gesture.json` (movement only, no static hand-pose
+  classification -- that proved too ambiguous to be reliable). Maps `swipe_left` ->
+  `next_track`, `swipe_right` -> `prev_track`, `swipe_up` -> `toggle_playback`, `swipe_down`
+  -> `dismiss_alarm`. Both stretch inputs check `eyes_on_road` before acting, per the team
+  contract.
 - `dismiss_alarm` resets the escalation countdown so a fresh alarm/pull-over cycle can occur,
   and also emits `pull_over_cancelled` if a `pull_over` had already fired, so the dashboard
   retracts the pull-over UI instead of leaving it stuck on screen.

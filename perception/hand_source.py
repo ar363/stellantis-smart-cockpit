@@ -4,7 +4,12 @@ Only used for the gesture-control stretch goal. Kept optional: capture.py
 only imports this when --gestures is passed, so a missing/broken model
 download doesn't take down the drowsiness/distraction MVP.
 
-Tracks hand position over time to detect swipes (left/right/up/down).
+Tracks hand position over time and reports a swipe (left/right/up/down)
+when it crosses a movement threshold. Deliberately movement-only, not
+static hand-pose classification (thumbs up, peace, etc.) -- pose
+classification from a single frame is unreliable across hand angles/sizes
+and was firing on poses it shouldn't. A raw directional swipe is far less
+ambiguous and is all the song-control/dismiss commands actually need.
 """
 
 import time
@@ -59,6 +64,8 @@ class HandSource:
         else:
             if dy < -_SWIPE_THRESHOLD:
                 return "swipe_up"  # hand moved up -> play/pause
+            if dy > _SWIPE_THRESHOLD:
+                return "swipe_down"  # hand moved down -> dismiss alarm
         return None
 
     def process(self, bgr_frame):

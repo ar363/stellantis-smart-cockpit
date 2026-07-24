@@ -89,15 +89,10 @@
   // ---------- Toast ----------
 
   const GESTURE_ICONS = {
-    open_palm: "\u270B",
-    thumbs_up: "\uD83D\uDC4D",
-    thumbs_down: "\uD83D\uDC4E",
-    fist: "\u270A",
-    peace: "\u270C",
-    wave: "\uD83D\uDC4B",
     swipe_left: "\u2B05",
     swipe_right: "\u27A1",
     swipe_up: "\u2B06",
+    swipe_down: "\u2B07",
   };
 
   function showToast(text, variant) {
