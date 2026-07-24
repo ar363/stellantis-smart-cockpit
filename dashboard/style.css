@@ -197,18 +197,87 @@ html, body {
 /* Escalation */
 #escalation-card { border-color: var(--danger); }
 #escalation-text { color: var(--danger); font-weight: 600; }
+#escalation-countdown {
+  margin-top: 8px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+}
+#escalation-countdown-value { display: inline-block; min-width: 2.5ch; text-align: right; }
 
-/* Pull-over */
-#pullover-card { grid-column: 1 / -1; text-align: center; }
-#pullover-canvas { width: 100%; max-width: 480px; background: #12161f; border-radius: 10px; }
+/* Pull-over takeover popup */
+#pullover-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: rgba(4, 6, 10, 0.8);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#pullover-modal-backdrop[hidden] { display: none; }
+#pullover-modal {
+  width: 100%;
+  max-width: 600px;
+  background: #12161f;
+  border: 1px solid var(--danger);
+  border-radius: 16px;
+  padding: 18px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(255, 77, 94, 0.25);
+}
+#pullover-modal-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--danger);
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+#pullover-views {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.pullover-view { flex: 1; min-width: 220px; }
+.pullover-view-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+#pullover-canvas-fp, #pullover-canvas-top {
+  width: 100%;
+  max-width: 260px;
+  background: #12161f;
+  border-radius: 10px;
+  display: block;
+}
 #pullover-banner {
-  margin-top: 10px;
+  margin-top: 12px;
   font-weight: 700;
   color: var(--danger);
   letter-spacing: 0.03em;
   animation: banner-blink 1s step-start infinite;
 }
 @keyframes banner-blink { 50% { opacity: 0.35; } }
+#pullover-dismiss-btn {
+  margin-top: 16px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: 1px solid var(--ok);
+  background: var(--card-bg);
+  color: var(--ok);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+#pullover-dismiss-btn:hover { background: rgba(61, 220, 151, 0.12); }
 
 /* Alarm overlay */
 #alarm-overlay {

@@ -70,7 +70,7 @@ is implemented on the perception side.
 | `/api/health` | GET | `{"ok": true}` — used to detect a live backend |
 | `/api/state` | GET | latest `DriverState` |
 | `/api/events?since=N` | GET | `{"events": [...], "latest_seq": N}` — events with `seq > N` |
-| `/api/control` | POST | merge-patch `shared/control.json`, e.g. `{"ignition_off": true}` |
+| `/api/control` | POST | merge-patch `shared/control.json`, e.g. `{"ignition_off": true}` or `{"dismiss_alarm_at": <epoch seconds>}` (sent when the pull-over popup's "Resume Driving" button is clicked) |
 | `/api/preview.jpg` | GET | latest camera frame, for the enrollment preview |
 | `/api/enroll/start` | POST | `{"face_id": "profile_1" \| "profile_2"}` — begin capturing |
 | `/api/enroll/stop` | POST | cancel the in-progress enrollment session |
@@ -99,8 +99,18 @@ since it isn't polling a log).
 | `profile_settings` | `face_id, theme, temperature, playlist` | updates Personalization card |
 | `notification_hold` | `id, message` | adds a held item to Notifications |
 | `notification_release` | `id, message` | marks that item released (or adds it if never held) |
-| `alarm` | `reason` (`"drowsy"` \| `"distracted"` \| `"occupant_left_behind"` \| `"manual"`) | shows the Escalation banner |
-| `pull_over` | — | hides Escalation, plays the pull-over drift/hazards animation |
+| `alarm` | `reason` (`"drowsy"` \| `"distracted"` \| `"occupant_left_behind"` \| `"manual"`), `seconds_remaining` | shows the Escalation banner + live countdown to pull-over |
+| `pull_over` | — | hides Escalation, opens the pull-over takeover popup (first-person road cam + top-down, drifting to the shoulder) |
+| `pull_over_cancelled` | — | emitted if the driver recovers or dismisses after a `pull_over` fired, but the dashboard deliberately ignores it — see below |
+
+The pull-over takeover popup always plays its drive/steer/stop sequence through to a full stop
+(~3s) and then waits there indefinitely with hazards blinking — it does **not** auto-close and
+does **not** react to `pull_over_cancelled`. It only closes when the driver clicks **Resume
+Driving**, which does two things: resets the popup locally, and (live mode only) posts
+`{"dismiss_alarm_at": ...}` to `/api/control` so `logic/engine.py` calls
+`escalation.acknowledge()` server-side too -- otherwise the backend's `pulled_over` latch would
+stay stuck and never fire another `pull_over` event. `mock.js` mirrors the same acknowledge
+semantics locally for the no-backend demo path.
 
 Note: the flashing/sound alarm overlay is driven directly off `DriverState.drowsy \|\|
 distracted` (dashboard's own immediate reaction, per scope). The `alarm` **event** from `/logic`

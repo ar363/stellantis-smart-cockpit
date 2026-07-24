@@ -9,10 +9,20 @@
   const POLL_STATE_MS = 200;
   const POLL_EVENTS_MS = 400;
 
+  // One-shot escalation events (alarm/pull_over/pull_over_cancelled) are
+  // point-in-time, not lasting state -- replaying stale ones from the event
+  // log on first load would re-trigger e.g. the pull-over popup for
+  // something that already happened in a previous session. Skip them on the
+  // very first catch-up poll only; state-establishing events like
+  // profile_settings still replay so refreshing mid-session keeps the UI in
+  // sync.
+  const TRANSIENT_EVENT_TYPES = new Set(["alarm", "pull_over", "pull_over_cancelled"]);
+
   let sinceSeq = 0;
   let statePoll = null;
   let eventsPoll = null;
   let active = false;
+  let primed = false;
 
   async function pollState() {
     try {
@@ -29,7 +39,11 @@
       if (!res.ok) return;
       const data = await res.json();
       sinceSeq = typeof data.latest_seq === "number" ? data.latest_seq : sinceSeq;
-      (data.events || []).forEach((evt) => window.applyLogicEvent(evt));
+      (data.events || []).forEach((evt) => {
+        if (!primed && TRANSIENT_EVENT_TYPES.has(evt.type)) return;
+        window.applyLogicEvent(evt);
+      });
+      primed = true;
     } catch (err) {
       // transient network hiccup -- just try again next tick
     }

@@ -19,8 +19,13 @@
   const notifList = document.getElementById("notif-list");
   const escalationCard = document.getElementById("escalation-card");
   const escalationText = document.getElementById("escalation-text");
-  const pulloverCard = document.getElementById("pullover-card");
-  const pulloverCanvas = document.getElementById("pullover-canvas");
+  const escalationCountdown = document.getElementById("escalation-countdown");
+  const escalationCountdownValue = document.getElementById("escalation-countdown-value");
+  const pulloverModalBackdrop = document.getElementById("pullover-modal-backdrop");
+  const pulloverCanvasFp = document.getElementById("pullover-canvas-fp");
+  const pulloverCanvasTop = document.getElementById("pullover-canvas-top");
+  const pulloverBanner = document.getElementById("pullover-banner");
+  const pulloverDismissBtn = document.getElementById("pullover-dismiss-btn");
   const clockEl = document.getElementById("clock");
   const autoToggleBtn = document.getElementById("auto-toggle-btn");
 
@@ -39,9 +44,9 @@
     if (!unsafe) {
       hideEscalation(); // backend stops emitting "alarm" once safe again, but never tells us to clear it -- do it here
     }
-    if (!state.present) {
-      hidePullover();
-    }
+    // Pull-over is intentionally NOT cleared here: once it starts, it plays
+    // to completion on its own timer regardless of the driver's state
+    // changing mid-animation (see finishPullover()).
   }
 
   function setTile(id, text, okCond, alertCond) {
@@ -163,11 +168,16 @@
         releaseNotification(evt.id, evt.message);
         break;
       case "alarm":
-        showEscalation(`ALARM — ${evt.reason || "attention required"}. Escalating if unresponsive…`);
+        showEscalation(evt.reason, evt.seconds_remaining);
         break;
       case "pull_over":
         hideEscalation();
         startPullover();
+        break;
+      case "pull_over_cancelled":
+        // Deliberately ignored: once the pull-over takeover starts, it plays
+        // through to completion and only then hands back control -- see
+        // finishPullover(). A quick recovery shouldn't yank the animation.
         break;
       default:
         console.warn("Unknown logic event", evt);
@@ -206,31 +216,82 @@
     });
   }
 
-  function showEscalation(text) {
+  let countdownTimer = null;
+  let countdownDeadline = null;
+
+  function showEscalation(reason, secondsRemaining) {
     escalationCard.hidden = false;
-    escalationText.textContent = text;
-  }
-  function hideEscalation() {
-    escalationCard.hidden = true;
+    escalationText.textContent = `ALARM — ${reason || "attention required"}. Escalating if unresponsive…`;
+
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+    if (typeof secondsRemaining === "number") {
+      countdownDeadline = performance.now() + secondsRemaining * 1000;
+      escalationCountdown.hidden = false;
+      tickCountdown();
+      countdownTimer = setInterval(tickCountdown, 100);
+    } else {
+      countdownDeadline = null;
+      escalationCountdown.hidden = true;
+    }
   }
 
-  // ---------- Pull-over animation ----------
+  function tickCountdown() {
+    const remaining = Math.max(0, (countdownDeadline - performance.now()) / 1000);
+    escalationCountdownValue.textContent = remaining.toFixed(1);
+    if (remaining <= 0) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+  }
+
+  function hideEscalation() {
+    escalationCard.hidden = true;
+    escalationCountdown.hidden = true;
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+    countdownDeadline = null;
+  }
+
+  // ---------- Pull-over takeover popup (first-person road cam + top-down, FSD-style) ----------
+  // Both views steer the same direction (right) so the road cam and the
+  // overhead view read as one consistent maneuver.
+
+  const PULLOVER_DURATION_MS = 3200;
+  const PULLOVER_DRIVE_END = 0.25; // fraction of duration spent driving straight before steering
+  const PULLOVER_STEER_END = 0.8; // fraction of duration by which the car has reached the shoulder
 
   let pulloverAnimId = null;
   let pulloverStart = null;
 
   function startPullover() {
-    pulloverCard.hidden = false;
+    if (pulloverStart != null) return; // already mid-animation -- let it finish, don't restart
+    pulloverModalBackdrop.hidden = false;
+    pulloverDismissBtn.hidden = true;
     pulloverStart = performance.now();
     cancelAnimationFrame(pulloverAnimId);
     drawPullover();
   }
 
-  function hidePullover() {
-    pulloverCard.hidden = true;
+  // Only called from the driver clicking "Resume Driving" -- the popup does
+  // not auto-close once stopped, it waits for an explicit acknowledgement.
+  function finishPullover() {
+    pulloverModalBackdrop.hidden = true;
     cancelAnimationFrame(pulloverAnimId);
+    pulloverAnimId = null;
     pulloverStart = null;
   }
+  pulloverDismissBtn.addEventListener("click", () => {
+    finishPullover();
+    // Tell whichever backend is active to actually clear its pulled_over
+    // latch -- otherwise a still-unsafe driver would never get a second
+    // pull_over, even though the popup looks closed.
+    if (window.Live && window.Live.isActive()) {
+      window.Live.setControl({ dismiss_alarm_at: Date.now() / 1000 });
+    } else if (window.Mock) {
+      window.Mock.acknowledgePullover();
+    }
+  });
 
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -242,28 +303,110 @@
     ctx.closePath();
   }
 
-  function drawPullover(ts) {
-    if (pulloverStart == null) return;
-    const ctx = pulloverCanvas.getContext("2d");
-    const w = pulloverCanvas.width;
-    const h = pulloverCanvas.height;
-    const elapsed = (ts || performance.now()) - pulloverStart;
-    const driftDuration = 2600;
-    const driftT = Math.min(1, elapsed / driftDuration);
-    const eased = 1 - Math.pow(1 - driftT, 3);
+  function drawPulloverFirstPerson(ctx, w, h, elapsed, steerEased, stopped) {
+    const horizonY = h * 0.38;
+    // Motion-parallax split: the far field (vanishing point, near the
+    // horizon) barely moves for a small heading change, while the near
+    // field (road right in front of the hood) sweeps left a lot more --
+    // that gap in speed is what reads as "the car is translating left"
+    // instead of "the road is tilting in place".
+    const vx = w / 2 - steerEased * (w * 0.1);
+    const laneCenterBottom = w / 2 - steerEased * (w * 0.42);
 
-    ctx.clearRect(0, 0, w, h);
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+    skyGrad.addColorStop(0, "#1a2333");
+    skyGrad.addColorStop(1, "#2c3446");
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, horizonY);
+
+    ctx.fillStyle = "#1b2016";
+    ctx.fillRect(0, horizonY, w, h - horizonY);
+
+    const roadHalfBottom = w * 0.46;
+    const roadHalfTop = 4;
+    ctx.fillStyle = "#2a2f3a";
+    ctx.beginPath();
+    ctx.moveTo(vx - roadHalfTop, horizonY);
+    ctx.lineTo(vx + roadHalfTop, horizonY);
+    ctx.lineTo(laneCenterBottom + roadHalfBottom, h);
+    ctx.lineTo(laneCenterBottom - roadHalfBottom, h);
+    ctx.closePath();
+    ctx.fill();
+
+    const shoulderWidthBottom = w * 0.28 * steerEased;
+    if (shoulderWidthBottom > 0) {
+      ctx.fillStyle = "#3a3226";
+      ctx.beginPath();
+      ctx.moveTo(vx - roadHalfTop, horizonY);
+      ctx.lineTo(vx - roadHalfTop - 6, horizonY);
+      ctx.lineTo(laneCenterBottom - roadHalfBottom - shoulderWidthBottom, h);
+      ctx.lineTo(laneCenterBottom - roadHalfBottom, h);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    const scrollSpeed = stopped ? 0 : 1 - steerEased * 0.85;
+    ctx.strokeStyle = "#e7c86a";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([16, 14]);
+    ctx.lineDashOffset = -((elapsed * 0.35 * scrollSpeed) % 40);
+    ctx.beginPath();
+    ctx.moveTo(vx, horizonY);
+    ctx.lineTo(laneCenterBottom, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = "#c7cede";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(vx - roadHalfTop, horizonY);
+    ctx.lineTo(laneCenterBottom - roadHalfBottom, h);
+    ctx.stroke();
+
+    // Cockpit A-pillars + dash
+    ctx.fillStyle = "#05070b";
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(0, h * 0.55);
+    ctx.lineTo(w * 0.12, h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(w, h);
+    ctx.lineTo(w, h * 0.55);
+    ctx.lineTo(w * 0.88, h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#0b0e14";
+    ctx.fillRect(0, h * 0.9, w, h * 0.1);
+
+    ctx.save();
+    ctx.translate(w / 2, h * 0.97);
+    ctx.rotate(steerEased * 0.35); // steering right, matches the road cam drift
+    ctx.strokeStyle = "#3a4256";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(0, 0, 34, Math.PI, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    drawHazardBlink(ctx, w * 0.09, h * 0.62, elapsed);
+    drawHazardBlink(ctx, w * 0.91, h * 0.62, elapsed);
+  }
+
+  function drawPulloverTopDown(ctx, w, h, elapsed, steerEased, stopped) {
     ctx.fillStyle = "#12161f";
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = "#1c2230";
     ctx.fillRect(40, 0, w - 80, h);
-    ctx.fillStyle = "#232a1c";
-    ctx.fillRect(w - 80, 0, 40, h);
+    ctx.fillStyle = "#232a1c"; // shoulder -- matches the road cam's rightward drift
+    ctx.fillRect(w - 40, 0, 40, h);
 
+    const scrollSpeed = stopped ? 0 : 1 - steerEased * 0.85;
     ctx.strokeStyle = "#4a5468";
     ctx.lineWidth = 4;
     ctx.setLineDash([18, 16]);
-    ctx.lineDashOffset = -(elapsed / 8) % 34;
+    ctx.lineDashOffset = -((elapsed / 8) * scrollSpeed) % 34;
     ctx.beginPath();
     ctx.moveTo(w / 2, 0);
     ctx.lineTo(w / 2, h);
@@ -273,8 +416,8 @@
     const carW = 34;
     const carH = 60;
     const startX = w / 2 - carW / 2;
-    const endX = w - 80 - carW - 6;
-    const x = startX + (endX - startX) * eased;
+    const endX = w - 40 - carW - 6;
+    const x = startX + (endX - startX) * steerEased;
     const y = h / 2 - carH / 2;
     ctx.fillStyle = "#dfe6f5";
     roundRect(ctx, x, y, carW, carH, 6);
@@ -294,7 +437,42 @@
         ctx.fill();
       });
     }
+  }
 
+  function drawHazardBlink(ctx, cx, cy, elapsed) {
+    if (Math.floor(elapsed / 300) % 2 !== 0) return;
+    ctx.fillStyle = "#ffb020";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawPullover(ts) {
+    if (pulloverStart == null) return;
+    const now = ts || performance.now();
+    const elapsed = now - pulloverStart;
+    const t = Math.min(1, elapsed / PULLOVER_DURATION_MS);
+
+    let steerT = 0;
+    if (t > PULLOVER_DRIVE_END) {
+      steerT = Math.min(1, (t - PULLOVER_DRIVE_END) / (PULLOVER_STEER_END - PULLOVER_DRIVE_END));
+    }
+    const steerEased = 1 - Math.pow(1 - steerT, 3);
+    const stopped = t >= PULLOVER_STEER_END;
+
+    const fpCtx = pulloverCanvasFp.getContext("2d");
+    drawPulloverFirstPerson(fpCtx, pulloverCanvasFp.width, pulloverCanvasFp.height, elapsed, steerEased, stopped);
+
+    const topCtx = pulloverCanvasTop.getContext("2d");
+    drawPulloverTopDown(topCtx, pulloverCanvasTop.width, pulloverCanvasTop.height, elapsed, steerEased, stopped);
+
+    pulloverBanner.textContent = stopped
+      ? "Stopped on shoulder — hazards on. Resume when ready."
+      : "Pulling over — taking control…";
+    pulloverDismissBtn.hidden = !stopped;
+
+    // Keeps rendering (hazard blink, etc.) indefinitely once stopped --
+    // never auto-closes. Only finishPullover() via the dismiss button ends it.
     pulloverAnimId = requestAnimationFrame(drawPullover);
   }
 

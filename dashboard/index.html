@@ -91,15 +91,29 @@
     <section class="card" id="escalation-card" hidden>
       <div class="card-title">Escalation</div>
       <div id="escalation-text"></div>
+      <div id="escalation-countdown" hidden>Pulling over in <span id="escalation-countdown-value">--</span>s</div>
     </section>
 
-    <!-- Pull-over animation -->
-    <section class="card" id="pullover-card" hidden>
-      <div class="card-title">Pull-Over Assist</div>
-      <canvas id="pullover-canvas" width="480" height="220"></canvas>
-      <div id="pullover-banner">Pulling over — driver unresponsive</div>
-    </section>
   </main>
+
+  <!-- Pull-over takeover popup: first-person road cam + top-down, FSD-style -->
+  <div id="pullover-modal-backdrop" hidden>
+    <div id="pullover-modal">
+      <div id="pullover-modal-title">Pull-Over Assist — Taking Control</div>
+      <div id="pullover-views">
+        <div class="pullover-view">
+          <div class="pullover-view-label">Road Cam</div>
+          <canvas id="pullover-canvas-fp" width="260" height="220"></canvas>
+        </div>
+        <div class="pullover-view">
+          <div class="pullover-view-label">Overhead</div>
+          <canvas id="pullover-canvas-top" width="260" height="220"></canvas>
+        </div>
+      </div>
+      <div id="pullover-banner">Pulling over — taking control…</div>
+      <button id="pullover-dismiss-btn" hidden>Resume Driving</button>
+    </div>
+  </div>
 
   <footer id="demo-controls">
     <div class="demo-title">Demo Controls</div>

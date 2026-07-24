@@ -30,8 +30,9 @@ seq N" without re-parsing the whole log.
 | `profile_settings` | `face_id, theme, temperature, playlist` | a recognized face becomes present (looked up from `logic/profiles.json`) |
 | `notification_hold` | `id, message` | a simulated notification arrives while distracted/eyes off road |
 | `notification_release` | `id, message` | a notification is safety-critical (always passes immediately), or a held one becomes safe to show |
-| `alarm` | `reason` (`"drowsy"` \| `"distracted"` \| `"occupant_left_behind"`) | repeats every ~2.5s while drowsy/distracted persists, or once for occupant-left-behind |
-| `pull_over` | -- | drowsy/distracted has persisted unacknowledged for ~6s |
+| `alarm` | `reason` (`"drowsy"` \| `"distracted"` \| `"occupant_left_behind"`), `seconds_remaining` (float, drowsy/distracted alarms only) | repeats every ~1.5s while drowsy/distracted persists (stops once `pull_over` fires), or once for occupant-left-behind |
+| `pull_over` | -- | drowsy/distracted has persisted unacknowledged for ~3s |
+| `pull_over_cancelled` | -- | driver becomes safe again, or acknowledges (voice/gesture dismiss), after a `pull_over` had fired |
 
 There's no real phone/notification source hooked up here (no such integration exists for a
 laptop-only demo), so `notifications.py` simulates one arriving every 15-25s -- the point is
@@ -53,10 +54,9 @@ to exercise the real hold/release gating against `DriverState`, not to fake urge
   raw hand gestures to `shared/gesture.json`; this maps `open_palm` -> `dismiss_alarm` and
   `thumbs_up` -> `confirm`. Both stretch inputs check `eyes_on_road` before acting, per the
   team contract.
-- **Known limitation**: `dismiss_alarm` resets the escalation countdown so a fresh
-  alarm/pull-over cycle can occur, but it doesn't retract an already-fired `pull_over` on the
-  dashboard -- that'd need a new event type (e.g. `pull_over_cancelled`), left as a refinement
-  since it's outside the original 5-event contract.
+- `dismiss_alarm` resets the escalation countdown so a fresh alarm/pull-over cycle can occur,
+  and also emits `pull_over_cancelled` if a `pull_over` had already fired, so the dashboard
+  retracts the pull-over UI instead of leaving it stuck on screen.
 
 ## Status
 MVP complete: profile store, notification hold/release, and the alarm escalation state

@@ -29,8 +29,14 @@
   let onStateCb = null;
   let onEventCb = null;
   let notifCounter = 0;
-  let alarmIgnoreTimer = null;
   let autoRunning = true;
+
+  const ALARM_REPEAT_MS = 1500; // mirrors logic/escalation.py's ALARM_REPEAT_S
+  const PULLOVER_THRESHOLD_MS = 3000; // mirrors logic/escalation.py's PULLOVER_THRESHOLD_S
+  let unsafeSince = null;
+  let pulledOver = false;
+  let alarmRepeatTimer = null;
+  let pulloverTimer = null;
 
   function emitState() {
     driverState.timestamp = Date.now() / 1000;
@@ -51,6 +57,7 @@
       driverState.eyes_on_road = true;
     }
     emitState();
+    handleAlarmCondition(); // presence factors into "unsafe" too -- clears the pulledOver latch when the driver leaves
   }
 
   function setProfile(id) {
@@ -94,22 +101,55 @@
     emitState();
   }
 
+  function clearAlarmTimers() {
+    clearTimeout(alarmRepeatTimer);
+    clearTimeout(pulloverTimer);
+    alarmRepeatTimer = null;
+    pulloverTimer = null;
+  }
+
+  function emitAlarmTick() {
+    const remaining = Math.max(0, (PULLOVER_THRESHOLD_MS - (Date.now() - unsafeSince)) / 1000);
+    emitEvent({
+      type: "alarm",
+      reason: driverState.drowsy ? "drowsy" : "distracted",
+      seconds_remaining: Math.round(remaining * 10) / 10,
+    });
+    alarmRepeatTimer = setTimeout(emitAlarmTick, ALARM_REPEAT_MS);
+  }
+
   function handleAlarmCondition() {
     const unsafe = driverState.drowsy || driverState.distracted;
     if (unsafe) {
-      emitEvent({ type: "alarm", reason: driverState.drowsy ? "drowsy" : "distracted" });
-      if (!alarmIgnoreTimer) {
-        alarmIgnoreTimer = setTimeout(() => {
-          alarmIgnoreTimer = null;
-          if (driverState.drowsy || driverState.distracted) {
-            emitEvent({ type: "pull_over" });
-          }
-        }, 6000);
+      if (unsafeSince == null) unsafeSince = Date.now();
+      if (!pulledOver && !alarmRepeatTimer) emitAlarmTick();
+      if (!pulledOver && !pulloverTimer) {
+        pulloverTimer = setTimeout(() => {
+          pulledOver = true;
+          clearAlarmTimers();
+          emitEvent({ type: "pull_over" });
+        }, PULLOVER_THRESHOLD_MS);
       }
-    } else if (alarmIgnoreTimer) {
-      clearTimeout(alarmIgnoreTimer);
-      alarmIgnoreTimer = null;
+    } else {
+      unsafeSince = null;
+      clearAlarmTimers();
+      if (pulledOver) {
+        pulledOver = false;
+        emitEvent({ type: "pull_over_cancelled" });
+      }
     }
+  }
+
+  function acknowledgePullover() {
+    // Mirrors logic/escalation.py's acknowledge(): clears the pulled_over
+    // latch and restarts the countdown from now, instead of leaving it
+    // stuck so a still-unsafe driver never gets a second pull_over.
+    const wasPulledOver = pulledOver;
+    clearAlarmTimers();
+    pulledOver = false;
+    if (unsafeSince != null) unsafeSince = Date.now();
+    if (wasPulledOver) emitEvent({ type: "pull_over_cancelled" });
+    handleAlarmCondition(); // reschedules alarm/pullover timers if still unsafe
   }
 
   function togglePresent() { setPresent(!driverState.present); }
@@ -159,7 +199,7 @@
     { t: 9000, run: () => setDistracted(true) },
     { t: 13000, run: () => setDistracted(false) },
     { t: 16000, run: () => setDrowsy(true) },
-    // pull_over fires ~6s later automatically via handleAlarmCondition
+    // pull_over fires ~3s later automatically via handleAlarmCondition
     { t: 24000, run: () => setDrowsy(false) },
     { t: 27000, run: () => setProfile("profile_2") },
     { t: 29000, run: () => cycleEmotion() },
@@ -201,6 +241,7 @@
 
   window.Mock = {
     startMock,
+    acknowledgePullover,
     togglePresent,
     toggleDrowsy,
     toggleDistracted,

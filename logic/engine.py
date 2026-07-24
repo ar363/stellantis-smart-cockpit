@@ -67,11 +67,12 @@ def main():
 
     last_face_id = "__unset__"
     current_state = {"eyes_on_road": True}
+    last_dismiss_at = None
 
     def on_command(command, source_text):
         print(f"[logic] command '{command}' from {source_text!r}")
         if command == "dismiss_alarm":
-            escalation.acknowledge()
+            escalation.acknowledge(emit)
 
     voice_listener = VoiceListener(on_command)
     if args.voice:
@@ -101,6 +102,16 @@ def main():
 
             control = read_json(CONTROL_PATH, default={})
             occupant_watch.tick(current_state, control, emit)
+
+            # Dashboard's "Resume Driving" button (pull-over popup) posts a
+            # fresh dismiss_alarm_at timestamp via /api/control -- treat it
+            # like a voice/gesture dismiss so it actually clears the
+            # escalation engine's pulled_over latch server-side, not just the
+            # popup on screen.
+            dismiss_at = control.get("dismiss_alarm_at")
+            if dismiss_at is not None and dismiss_at != last_dismiss_at:
+                last_dismiss_at = dismiss_at
+                escalation.acknowledge(emit)
 
             time.sleep(args.interval)
     except KeyboardInterrupt:
