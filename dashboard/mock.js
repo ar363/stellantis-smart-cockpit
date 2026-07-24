@@ -120,6 +120,24 @@
     setProfile(next);
   }
 
+  let ignitionOffAt = null;
+  let ignitionOffTimer = null;
+  const IGNITION_OFF_TIMER_MS = 8000; // mirrors logic/occupant_watch.py's TIMER_S
+
+  function setIgnitionOff(v) {
+    clearTimeout(ignitionOffTimer);
+    if (!v) {
+      ignitionOffAt = null;
+      return;
+    }
+    ignitionOffAt = Date.now();
+    ignitionOffTimer = setTimeout(() => {
+      if (driverState.present) {
+        emitEvent({ type: "alarm", reason: "occupant_left_behind" });
+      }
+    }, IGNITION_OFF_TIMER_MS);
+  }
+
   function fireAlarm() {
     emitEvent({ type: "alarm", reason: driverState.drowsy ? "drowsy" : driverState.distracted ? "distracted" : "manual" });
   }
@@ -192,6 +210,7 @@
     firePullOver,
     fireHold,
     fireRelease,
+    setIgnitionOff,
     toggleAutoDemo,
     isAutoRunning: () => autoRunning,
     profiles: PROFILES,

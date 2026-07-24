@@ -227,3 +227,139 @@ html, body {
 }
 .demo-buttons button:hover { border-color: var(--accent); background: rgba(255, 255, 255, 0.08); }
 .demo-buttons button.active { border-color: var(--accent); color: var(--accent); }
+.demo-buttons button:disabled { opacity: 0.35; cursor: not-allowed; }
+.demo-buttons button:disabled:hover { border-color: var(--card-border); background: var(--card-bg); }
+
+#demo-controls-note {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  max-width: 70ch;
+}
+
+/* Topbar "Manage Profiles" button */
+#manage-profiles-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+#manage-profiles-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Enrollment modal */
+#enroll-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(4, 6, 10, 0.72);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#enroll-modal-backdrop[hidden] { display: none; }
+#enroll-modal {
+  width: 100%;
+  max-width: 460px;
+  background: #12161f;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 20px;
+}
+#enroll-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  margin-bottom: 14px;
+}
+#enroll-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+#enroll-modal-close:hover { color: var(--text); }
+
+#enroll-live-required {
+  color: var(--warn);
+  font-size: 0.85rem;
+  border: 1px dashed var(--warn);
+  border-radius: 10px;
+  padding: 12px;
+}
+#enroll-live-required code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+#enroll-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.enroll-tab {
+  flex: 1;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-dim);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.enroll-tab.active { border-color: var(--accent); color: var(--accent); }
+.enroll-tab:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#enroll-preview-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #05070b;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+#enroll-preview { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+#enroll-preview-placeholder {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 0 20px;
+}
+
+#enroll-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+#enroll-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+#enroll-progress-text { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 14px; }
+
+#enroll-actions { display: flex; gap: 10px; }
+#enroll-actions button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+#enroll-start-btn { border-color: var(--ok); color: var(--ok); }
+#enroll-stop-btn { border-color: var(--danger); color: var(--danger); }

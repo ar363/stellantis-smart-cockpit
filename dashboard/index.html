@@ -17,6 +17,7 @@
       <span>SMART COCKPIT</span>
     </div>
     <div id="conn-badge" class="badge mock">MOCK DATA</div>
+    <button id="manage-profiles-btn">Manage Profiles</button>
     <div id="clock"></div>
   </header>
 
@@ -91,21 +92,59 @@
 
   <footer id="demo-controls">
     <div class="demo-title">Demo Controls</div>
+    <div id="demo-controls-note" hidden></div>
     <div class="demo-buttons">
-      <button data-action="toggle-present">Toggle Present</button>
-      <button data-action="toggle-drowsy">Toggle Drowsy</button>
-      <button data-action="toggle-distracted">Toggle Distracted</button>
-      <button data-action="cycle-emotion">Cycle Emotion</button>
-      <button data-action="switch-profile">Switch Profile</button>
-      <button data-action="fire-alarm">Fire Alarm Event</button>
-      <button data-action="fire-pullover">Fire Pull-Over Event</button>
-      <button data-action="fire-hold">Fire Notification Hold</button>
-      <button data-action="fire-release">Fire Notification Release</button>
-      <button data-action="toggle-auto" id="auto-toggle-btn">Pause Auto-Demo</button>
+      <button data-action="toggle-present" data-mock-only>Toggle Present</button>
+      <button data-action="toggle-drowsy" data-mock-only>Toggle Drowsy</button>
+      <button data-action="toggle-distracted" data-mock-only>Toggle Distracted</button>
+      <button data-action="cycle-emotion" data-mock-only>Cycle Emotion</button>
+      <button data-action="switch-profile" data-mock-only>Switch Profile</button>
+      <button data-action="fire-alarm" data-mock-only>Fire Alarm Event</button>
+      <button data-action="fire-pullover" data-mock-only>Fire Pull-Over Event</button>
+      <button data-action="fire-hold" data-mock-only>Fire Notification Hold</button>
+      <button data-action="fire-release" data-mock-only>Fire Notification Release</button>
+      <button data-action="toggle-ignition" id="ignition-toggle-btn">Toggle Ignition Off</button>
+      <button data-action="toggle-auto" id="auto-toggle-btn" data-mock-only>Pause Auto-Demo</button>
     </div>
   </footer>
 
+  <div id="enroll-modal-backdrop" hidden>
+    <div id="enroll-modal" role="dialog" aria-labelledby="enroll-modal-title">
+      <div id="enroll-modal-header">
+        <span id="enroll-modal-title">Manage Profiles</span>
+        <button id="enroll-modal-close" aria-label="Close">&times;</button>
+      </div>
+
+      <div id="enroll-live-required" hidden>
+        Live backend required — run <code>python main.py</code>, then reopen this panel.
+      </div>
+
+      <div id="enroll-body">
+        <div id="enroll-tabs">
+          <button class="enroll-tab active" data-face-id="profile_1">Driver 1</button>
+          <button class="enroll-tab" data-face-id="profile_2">Driver 2</button>
+        </div>
+
+        <div id="enroll-preview-wrap">
+          <img id="enroll-preview" alt="Camera preview" hidden />
+          <div id="enroll-preview-placeholder">Preview appears once enrollment starts</div>
+        </div>
+
+        <div id="enroll-progress-bar"><div id="enroll-progress-fill"></div></div>
+        <div id="enroll-progress-text">Not started</div>
+
+        <div id="enroll-actions">
+          <button id="enroll-start-btn">Start Enrollment</button>
+          <button id="enroll-stop-btn" hidden>Stop</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="mock.js"></script>
   <script src="app.js"></script>
+  <script src="live.js"></script>
+  <script src="enroll.js"></script>
+  <script src="boot.js"></script>
 </body>
 </html>

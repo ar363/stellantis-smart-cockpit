@@ -24,6 +24,7 @@
   const autoToggleBtn = document.getElementById("auto-toggle-btn");
 
   let notifications = [];
+  let ignitionOff = false;
 
   // ---------- DriverState ----------
 
@@ -294,7 +295,9 @@
   document.querySelectorAll("#demo-controls button").forEach((btn) => {
     btn.addEventListener("click", () => {
       const action = btn.dataset.action;
-      if (action !== "toggle-auto" && window.Mock.isAutoRunning()) {
+      const liveActive = window.Live && window.Live.isActive();
+      if (liveActive && btn.hasAttribute("data-mock-only")) return; // disabled + inert in live mode
+      if (!liveActive && action !== "toggle-auto" && window.Mock.isAutoRunning()) {
         window.Mock.toggleAutoDemo();
         autoToggleBtn.textContent = "Resume Auto-Demo";
         autoToggleBtn.classList.add("active");
@@ -309,6 +312,17 @@
         case "fire-pullover": window.Mock.firePullOver(); break;
         case "fire-hold": window.Mock.fireHold(); break;
         case "fire-release": window.Mock.fireRelease(); break;
+        case "toggle-ignition": {
+          ignitionOff = !ignitionOff;
+          btn.classList.toggle("active", ignitionOff);
+          btn.textContent = ignitionOff ? "Toggle Ignition On" : "Toggle Ignition Off";
+          if (window.Live && window.Live.isActive()) {
+            window.Live.setControl({ ignition_off: ignitionOff });
+          } else {
+            window.Mock.setIgnitionOff(ignitionOff);
+          }
+          break;
+        }
         case "toggle-auto": {
           const running = window.Mock.toggleAutoDemo();
           autoToggleBtn.textContent = running ? "Pause Auto-Demo" : "Resume Auto-Demo";
@@ -319,10 +333,9 @@
     });
   });
 
-  // ---------- Boot ----------
+  // ---------- Exports ----------
+  // boot.js decides whether to start window.Live or window.Mock against these.
 
   window.applyDriverState = applyDriverState;
   window.applyLogicEvent = applyLogicEvent;
-
-  window.Mock.startMock(applyDriverState, applyLogicEvent);
 })();
