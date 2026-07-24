@@ -1,7 +1,7 @@
 /*
  * Stand-in for Ashwin's perception feed and Shahaan's logic events.
  * Produces DriverState (shared/schema.py contract) + logic events
- * (notification_hold/notification_release/alarm/pull_over/profile_settings)
+ * (alarm/pull_over/profile_settings/song_state/gesture_detected)
  * so the dashboard is fully demoable before those modules exist.
  *
  * Swap point for integration: replace the call to Mock.startMock() in
@@ -16,6 +16,43 @@
 
   const EMOTIONS = ["calm", "stressed", "tired"];
 
+  const EMOTION_PLAYLISTS = {
+    calm: "Focus Flow",
+    stressed: "Ambient Calm",
+    tired: "Upbeat Energy",
+  };
+
+  const PLAYLISTS = {
+    "Focus Flow": [
+      { title: "Midnight Focus", artist: "Lo-Fi Collective", duration: 234 },
+      { title: "Deep Work", artist: "Chill Beats", duration: 198 },
+      { title: "Flow State", artist: "Ambient Waves", duration: 267 },
+      { title: "Concentration", artist: "Study Sessions", duration: 212 },
+      { title: "Brain Waves", artist: "Synth Dreams", duration: 245 },
+    ],
+    "Ambient Calm": [
+      { title: "Gentle Rain", artist: "Nature Sounds", duration: 312 },
+      { title: "Ocean Drift", artist: "Ambient Waves", duration: 287 },
+      { title: "Soft Light", artist: "Calm Collective", duration: 195 },
+      { title: "Floating", artist: "Chill Beats", duration: 241 },
+      { title: "Stillness", artist: "Meditation FM", duration: 328 },
+    ],
+    "Upbeat Energy": [
+      { title: "Neon Rush", artist: "Synthwave FM", duration: 203 },
+      { title: "Electric Feel", artist: "Retro Drive", duration: 189 },
+      { title: "Turbo Boost", artist: "High Octane", duration: 221 },
+      { title: "Solar Flare", artist: "Cosmic Beats", duration: 176 },
+      { title: "Adrenaline", artist: "Pulse Radio", duration: 198 },
+    ],
+    "Late Night Drive": [
+      { title: "Midnight City", artist: "Night Owl", duration: 256 },
+      { title: "Street Lights", artist: "Urban Chill", duration: 232 },
+      { title: "After Hours", artist: "Lo-Fi Collective", duration: 278 },
+      { title: "Cruisin'", artist: "Retro Drive", duration: 211 },
+      { title: "Moonlit Road", artist: "Synth Dreams", duration: 245 },
+    ],
+  };
+
   let driverState = {
     face_id: null,
     present: false,
@@ -28,15 +65,82 @@
 
   let onStateCb = null;
   let onEventCb = null;
-  let notifCounter = 0;
   let autoRunning = true;
 
-  const ALARM_REPEAT_MS = 1500; // mirrors logic/escalation.py's ALARM_REPEAT_S
-  const PULLOVER_THRESHOLD_MS = 3000; // mirrors logic/escalation.py's PULLOVER_THRESHOLD_S
+  const ALARM_REPEAT_MS = 1500;
+  const PULLOVER_THRESHOLD_MS = 3000;
   let unsafeSince = null;
   let pulledOver = false;
   let alarmRepeatTimer = null;
   let pulloverTimer = null;
+
+  // --- Song player state ---
+  let songPlayer = {
+    playlist_name: "Focus Flow",
+    track_index: 0,
+    playing: true,
+    elapsed: 0,
+    last_tick: Date.now(),
+  };
+
+  function currentTrack() {
+    const tracks = PLAYLISTS[songPlayer.playlist_name] || PLAYLISTS["Focus Flow"];
+    return tracks[songPlayer.track_index % tracks.length];
+  }
+
+  function emitSongState() {
+    const track = currentTrack();
+    emitEvent({
+      type: "song_state",
+      title: track.title,
+      artist: track.artist,
+      duration: track.duration,
+      elapsed: Math.floor(songPlayer.elapsed),
+      playing: songPlayer.playing,
+      playlist: songPlayer.playlist_name,
+    });
+  }
+
+  function skipTrack() {
+    const tracks = PLAYLISTS[songPlayer.playlist_name] || PLAYLISTS["Focus Flow"];
+    songPlayer.track_index = (songPlayer.track_index + 1) % tracks.length;
+    songPlayer.elapsed = 0;
+    songPlayer.last_tick = Date.now();
+    emitSongState();
+  }
+
+  function prevTrack() {
+    const tracks = PLAYLISTS[songPlayer.playlist_name] || PLAYLISTS["Focus Flow"];
+    songPlayer.track_index = (songPlayer.track_index - 1 + tracks.length) % tracks.length;
+    songPlayer.elapsed = 0;
+    songPlayer.last_tick = Date.now();
+    emitSongState();
+  }
+
+  function togglePlayback() {
+    songPlayer.playing = !songPlayer.playing;
+    songPlayer.last_tick = Date.now();
+    emitSongState();
+  }
+
+  function switchPlaylist(name) {
+    songPlayer.playlist_name = name;
+    songPlayer.track_index = 0;
+    songPlayer.elapsed = 0;
+    songPlayer.last_tick = Date.now();
+    emitSongState();
+  }
+
+  function tickSongPlayer() {
+    if (!songPlayer.playing) return;
+    const now = Date.now();
+    songPlayer.elapsed += (now - songPlayer.last_tick) / 1000;
+    songPlayer.last_tick = now;
+    const track = currentTrack();
+    if (songPlayer.elapsed >= track.duration) {
+      skipTrack();
+    }
+  }
 
   function emitState() {
     driverState.timestamp = Date.now() / 1000;
@@ -57,7 +161,7 @@
       driverState.eyes_on_road = true;
     }
     emitState();
-    handleAlarmCondition(); // presence factors into "unsafe" too -- clears the pulledOver latch when the driver leaves
+    handleAlarmCondition();
   }
 
   function setProfile(id) {
@@ -87,18 +191,14 @@
     driverState.eyes_on_road = !v;
     emitState();
     handleAlarmCondition();
-    if (v) {
-      notifCounter += 1;
-      emitEvent({ type: "notification_hold", id: `notif-${notifCounter}`, message: "Incoming message held — eyes off road" });
-    } else if (notifCounter > 0) {
-      emitEvent({ type: "notification_release", id: `notif-${notifCounter}`, message: "Incoming message" });
-    }
   }
 
   function cycleEmotion() {
     const i = EMOTIONS.indexOf(driverState.emotion);
     driverState.emotion = EMOTIONS[(i + 1) % EMOTIONS.length];
     emitState();
+    const playlist = EMOTION_PLAYLISTS[driverState.emotion] || "Focus Flow";
+    switchPlaylist(playlist);
   }
 
   function clearAlarmTimers() {
@@ -141,15 +241,12 @@
   }
 
   function acknowledgePullover() {
-    // Mirrors logic/escalation.py's acknowledge(): clears the pulled_over
-    // latch and restarts the countdown from now, instead of leaving it
-    // stuck so a still-unsafe driver never gets a second pull_over.
     const wasPulledOver = pulledOver;
     clearAlarmTimers();
     pulledOver = false;
     if (unsafeSince != null) unsafeSince = Date.now();
     if (wasPulledOver) emitEvent({ type: "pull_over_cancelled" });
-    handleAlarmCondition(); // reschedules alarm/pullover timers if still unsafe
+    handleAlarmCondition();
   }
 
   function togglePresent() { setPresent(!driverState.present); }
@@ -162,19 +259,14 @@
 
   let ignitionOffAt = null;
   let ignitionOffTimer = null;
-  const IGNITION_OFF_TIMER_MS = 8000; // mirrors logic/occupant_watch.py's TIMER_S
+  const IGNITION_OFF_TIMER_MS = 8000;
 
   function setIgnitionOff(v) {
     clearTimeout(ignitionOffTimer);
-    if (!v) {
-      ignitionOffAt = null;
-      return;
-    }
+    if (!v) { ignitionOffAt = null; return; }
     ignitionOffAt = Date.now();
     ignitionOffTimer = setTimeout(() => {
-      if (driverState.present) {
-        emitEvent({ type: "alarm", reason: "occupant_left_behind" });
-      }
+      if (driverState.present) emitEvent({ type: "alarm", reason: "occupant_left_behind" });
     }, IGNITION_OFF_TIMER_MS);
   }
 
@@ -182,27 +274,28 @@
     emitEvent({ type: "alarm", reason: driverState.drowsy ? "drowsy" : driverState.distracted ? "distracted" : "manual" });
   }
   function firePullOver() { emitEvent({ type: "pull_over" }); }
-  function fireHold() {
-    notifCounter += 1;
-    emitEvent({ type: "notification_hold", id: `notif-${notifCounter}`, message: "Text message held" });
-  }
-  function fireRelease() {
-    emitEvent({ type: "notification_release", id: `notif-${notifCounter}`, message: "Text message" });
+
+  // --- Gesture detection helper for demo ---
+  function fireGesture(gesture) {
+    emitEvent({ type: "gesture_detected", gesture: gesture });
   }
 
-  // Scripted unattended demo sequence (loops every 40s) so the dashboard
-  // demos itself end-to-end without anyone touching the controls.
+  // Scripted unattended demo sequence
   const SCRIPT = [
     { t: 0, run: () => setPresent(false) },
     { t: 2000, run: () => setProfile("profile_1") },
+    { t: 3500, run: () => fireGesture("thumbs_up") },
     { t: 4000, run: () => cycleEmotion() },
+    { t: 5500, run: () => fireGesture("swipe_right") },
+    { t: 6000, run: () => fireGesture("peace") },
     { t: 9000, run: () => setDistracted(true) },
+    { t: 10500, run: () => fireGesture("swipe_left") },
     { t: 13000, run: () => setDistracted(false) },
     { t: 16000, run: () => setDrowsy(true) },
-    // pull_over fires ~3s later automatically via handleAlarmCondition
     { t: 24000, run: () => setDrowsy(false) },
     { t: 27000, run: () => setProfile("profile_2") },
     { t: 29000, run: () => cycleEmotion() },
+    { t: 32000, run: () => fireGesture("swipe_up") },
     { t: 34000, run: () => cycleEmotion() },
   ];
   const SCRIPT_LOOP_MS = 40000;
@@ -212,6 +305,7 @@
     const fired = new Set();
     setInterval(() => {
       if (!autoRunning) return;
+      tickSongPlayer();
       elapsed += 250;
       SCRIPT.forEach((s, idx) => {
         if (!fired.has(idx) && elapsed >= s.t) {
@@ -235,7 +329,8 @@
     onStateCb = onState;
     onEventCb = onEvent;
     emitState();
-    setInterval(emitState, 200); // ~5fps publish, matches "every frame" contract
+    emitSongState();
+    setInterval(emitState, 200);
     startAutoDemo();
   }
 
@@ -249,8 +344,6 @@
     cycleEmotion,
     fireAlarm,
     firePullOver,
-    fireHold,
-    fireRelease,
     setIgnitionOff,
     toggleAutoDemo,
     isAutoRunning: () => autoRunning,

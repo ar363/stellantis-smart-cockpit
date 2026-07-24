@@ -81,10 +81,22 @@
       </div>
     </section>
 
-    <!-- Notifications from logic -->
-    <section class="card" id="notif-card">
-      <div class="card-title">Notifications</div>
-      <ul id="notif-list"><li class="notif-empty">No notifications</li></ul>
+    <!-- Now Playing -->
+    <section class="card" id="player-card">
+      <div class="card-title">Now Playing</div>
+      <div id="player-art">♫</div>
+      <div id="player-track">—</div>
+      <div id="player-artist">—</div>
+      <div id="player-progress-wrap">
+        <div id="player-progress-bar"><div id="player-progress-fill"></div></div>
+        <div id="player-time"><span id="player-elapsed">0:00</span><span id="player-duration">0:00</span></div>
+      </div>
+      <div id="player-controls">
+        <button id="player-prev" title="Previous">⏮</button>
+        <button id="player-play" title="Play/Pause">▶</button>
+        <button id="player-next" title="Next">⏭</button>
+      </div>
+      <div id="player-playlist-label">Focus Flow</div>
     </section>
 
     <!-- Escalation banner -->
@@ -92,6 +104,26 @@
       <div class="card-title">Escalation</div>
       <div id="escalation-text"></div>
       <div id="escalation-countdown" hidden>Pulling over in <span id="escalation-countdown-value">--</span>s</div>
+    </section>
+
+    <!-- Voice + Gesture command reference -->
+    <section class="card" id="commands-card">
+      <div class="card-title">Voice &amp; Gesture Commands</div>
+      <div class="cmd-group">
+        <div class="cmd-group-title">Voice (say aloud)</div>
+        <div class="cmd-row"><span class="cmd-keys">"next song" / "skip"</span><span class="cmd-desc">Skip track</span></div>
+        <div class="cmd-row"><span class="cmd-keys">"previous song" / "go back"</span><span class="cmd-desc">Prev track</span></div>
+        <div class="cmd-row"><span class="cmd-keys">"pause" / "play"</span><span class="cmd-desc">Play / Pause</span></div>
+        <div class="cmd-row"><span class="cmd-keys">"dismiss" / "cancel alarm"</span><span class="cmd-desc">Dismiss alarm</span></div>
+        <div class="cmd-row"><span class="cmd-keys">"call"</span><span class="cmd-desc">Phone call</span></div>
+      </div>
+      <div class="cmd-group">
+        <div class="cmd-group-title">Gestures (show to camera)</div>
+        <div class="cmd-row"><span class="cmd-keys">\u2190 Swipe left</span><span class="cmd-desc">Next track</span></div>
+        <div class="cmd-row"><span class="cmd-keys">\u2192 Swipe right</span><span class="cmd-desc">Prev track</span></div>
+        <div class="cmd-row"><span class="cmd-keys">\u2191 Swipe up</span><span class="cmd-desc">Play / Pause</span></div>
+        <div class="cmd-row"><span class="cmd-keys">\u270B Open palm</span><span class="cmd-desc">Dismiss alarm</span></div>
+      </div>
     </section>
 
   </main>
@@ -124,14 +156,15 @@
       <button data-action="toggle-distracted" data-mock-only>Toggle Distracted</button>
       <button data-action="cycle-emotion" data-mock-only>Cycle Emotion</button>
       <button data-action="switch-profile" data-mock-only>Switch Profile</button>
-      <button data-action="fire-alarm" data-mock-only>Fire Alarm Event</button>
-      <button data-action="fire-pullover" data-mock-only>Fire Pull-Over Event</button>
-      <button data-action="fire-hold" data-mock-only>Fire Notification Hold</button>
-      <button data-action="fire-release" data-mock-only>Fire Notification Release</button>
+      <button data-action="fire-alarm" data-mock-only>Fire Alarm</button>
+      <button data-action="fire-pullover" data-mock-only>Fire Pull-Over</button>
       <button data-action="toggle-ignition" id="ignition-toggle-btn">Toggle Ignition Off</button>
       <button data-action="toggle-auto" id="auto-toggle-btn" data-mock-only>Pause Auto-Demo</button>
     </div>
   </footer>
+
+  <!-- Toast container for gesture/voice/command feedback -->
+  <div id="toast-container"></div>
 
   <div id="enroll-modal-backdrop" hidden>
     <div id="enroll-modal" role="dialog" aria-labelledby="enroll-modal-title">

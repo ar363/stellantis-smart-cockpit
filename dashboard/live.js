@@ -16,7 +16,7 @@
   // very first catch-up poll only; state-establishing events like
   // profile_settings still replay so refreshing mid-session keeps the UI in
   // sync.
-  const TRANSIENT_EVENT_TYPES = new Set(["alarm", "pull_over", "pull_over_cancelled"]);
+  const TRANSIENT_EVENT_TYPES = new Set(["alarm", "pull_over", "pull_over_cancelled", "gesture_detected", "phone_call_initiated", "command_confirmed"]);
 
   let sinceSeq = 0;
   let statePoll = null;

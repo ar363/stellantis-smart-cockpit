@@ -4,11 +4,21 @@ publishes raw hand gestures to shared/gesture.json; this is the only place
 allowed to turn that into an action, and only when the driver's eyes are on
 the road, per the team contract ("both must check eyes_on_road ... and
 ignore input if false").
+
+Gesture mappings (swipe-based for song control):
+  swipe_right -> next_track
+  swipe_left  -> prev_track
+  swipe_up    -> toggle_playback
+  open_palm   -> dismiss_alarm
+  peace       -> dismiss_alarm (alt)
 """
 
 GESTURE_COMMANDS = {
+    "swipe_right": "next_track",
+    "swipe_left": "prev_track",
+    "swipe_up": "toggle_playback",
     "open_palm": "dismiss_alarm",
-    "thumbs_up": "confirm",
+    "peace": "dismiss_alarm",
 }
 
 

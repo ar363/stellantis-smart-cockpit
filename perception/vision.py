@@ -175,9 +175,9 @@ def classify_emotion(ear, mar, brow, yawn_active):
 
 
 def classify_gesture(points):
-    """Very small heuristic gesture set for the gesture-control stretch goal:
-    open palm / thumbs up / fist. Orientation-dependent (assumes an upright
-    hand facing the camera) -- good enough for a demo, not production."""
+    """Hackathon-grade gesture classifier. Detects: open_palm, thumbs_up,
+    thumbs_down, peace, fist, wave. Orientation-dependent (assumes upright
+    hand facing camera) -- good enough for a demo, not production."""
 
     def extended(tip, pip):
         return points[tip][1] < points[pip][1]
@@ -187,11 +187,25 @@ def classify_gesture(points):
     thumb_extended = abs(points[_THUMB_TIP][0] - points[_THUMB_IP][0]) > abs(
         points[_WRIST][0] - points[_THUMB_IP][0]
     ) * 0.3
+    thumb_down = points[_THUMB_TIP][1] > points[_WRIST][1]
 
     if all(fingers) and thumb_extended:
         return "open_palm"
-    if not any(fingers) and thumb_up_axis:
+    if not any(fingers) and thumb_up_axis and not thumb_down:
         return "thumbs_up"
+    if not any(fingers) and thumb_down:
+        return "thumbs_down"
     if not any(fingers) and not thumb_up_axis:
         return "fist"
+
+    index_up = fingers[0]
+    middle_up = fingers[1]
+    ring_down = not fingers[2]
+    pinky_down = not fingers[3]
+    if index_up and middle_up and ring_down and pinky_down:
+        return "peace"
+
+    if sum(fingers) >= 3:
+        return "wave"
+
     return None

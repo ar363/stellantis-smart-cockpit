@@ -36,6 +36,37 @@ from voice import VoiceListener  # noqa: E402
 PROFILES_PATH = Path(__file__).parent / "profiles.json"
 POLL_INTERVAL_S = 0.2
 
+PLAYLISTS = {
+    "Focus Flow": [
+        {"title": "Midnight Focus", "artist": "Lo-Fi Collective", "duration": 234},
+        {"title": "Deep Work", "artist": "Chill Beats", "duration": 198},
+        {"title": "Flow State", "artist": "Ambient Waves", "duration": 267},
+        {"title": "Concentration", "artist": "Study Sessions", "duration": 212},
+        {"title": "Brain Waves", "artist": "Synth Dreams", "duration": 245},
+    ],
+    "Ambient Calm": [
+        {"title": "Gentle Rain", "artist": "Nature Sounds", "duration": 312},
+        {"title": "Ocean Drift", "artist": "Ambient Waves", "duration": 287},
+        {"title": "Soft Light", "artist": "Calm Collective", "duration": 195},
+        {"title": "Floating", "artist": "Chill Beats", "duration": 241},
+        {"title": "Stillness", "artist": "Meditation FM", "duration": 328},
+    ],
+    "Upbeat Energy": [
+        {"title": "Neon Rush", "artist": "Synthwave FM", "duration": 203},
+        {"title": "Electric Feel", "artist": "Retro Drive", "duration": 189},
+        {"title": "Turbo Boost", "artist": "High Octane", "duration": 221},
+        {"title": "Solar Flare", "artist": "Cosmic Beats", "duration": 176},
+        {"title": "Adrenaline", "artist": "Pulse Radio", "duration": 198},
+    ],
+    "Late Night Drive": [
+        {"title": "Midnight City", "artist": "Night Owl", "duration": 256},
+        {"title": "Street Lights", "artist": "Urban Chill", "duration": 232},
+        {"title": "After Hours", "artist": "Lo-Fi Collective", "duration": 278},
+        {"title": "Cruisin'", "artist": "Retro Drive", "duration": 211},
+        {"title": "Moonlit Road", "artist": "Synth Dreams", "duration": 245},
+    ],
+}
+
 
 def make_emitter():
     counter = {"seq": next_seq(EVENTS_PATH)}
@@ -68,11 +99,79 @@ def main():
     last_face_id = "__unset__"
     current_state = {"eyes_on_road": True}
     last_dismiss_at = None
+    last_emotion = "__unset__"
+
+    EMOTION_PLAYLISTS = {
+        "calm": "Focus Flow",
+        "stressed": "Ambient Calm",
+        "tired": "Upbeat Energy",
+    }
+
+    # --- Song player state ---
+    song_player = {
+        "playlist_name": "Focus Flow",
+        "track_index": 0,
+        "playing": True,
+        "elapsed": 0,
+        "last_tick": time.monotonic(),
+    }
+
+    def current_track():
+        tracks = PLAYLISTS.get(song_player["playlist_name"], PLAYLISTS["Focus Flow"])
+        return tracks[song_player["track_index"] % len(tracks)]
+
+    def emit_song_state():
+        track = current_track()
+        emit({
+            "type": "song_state",
+            "title": track["title"],
+            "artist": track["artist"],
+            "duration": track["duration"],
+            "elapsed": int(song_player["elapsed"]),
+            "playing": song_player["playing"],
+            "playlist": song_player["playlist_name"],
+        })
+
+    def skip_track():
+        tracks = PLAYLISTS.get(song_player["playlist_name"], PLAYLISTS["Focus Flow"])
+        song_player["track_index"] = (song_player["track_index"] + 1) % len(tracks)
+        song_player["elapsed"] = 0
+        song_player["last_tick"] = time.monotonic()
+        emit_song_state()
+
+    def prev_track():
+        tracks = PLAYLISTS.get(song_player["playlist_name"], PLAYLISTS["Focus Flow"])
+        song_player["track_index"] = (song_player["track_index"] - 1) % len(tracks)
+        song_player["elapsed"] = 0
+        song_player["last_tick"] = time.monotonic()
+        emit_song_state()
+
+    def toggle_playback():
+        song_player["playing"] = not song_player["playing"]
+        song_player["last_tick"] = time.monotonic()
+        emit_song_state()
+
+    def switch_playlist(name):
+        song_player["playlist_name"] = name
+        song_player["track_index"] = 0
+        song_player["elapsed"] = 0
+        song_player["last_tick"] = time.monotonic()
+        emit_song_state()
 
     def on_command(command, source_text):
         print(f"[logic] command '{command}' from {source_text!r}")
         if command == "dismiss_alarm":
             escalation.acknowledge(emit)
+        elif command == "next_track":
+            skip_track()
+        elif command == "prev_track":
+            prev_track()
+        elif command == "toggle_playback":
+            toggle_playback()
+        elif command == "phone_call":
+            emit({"type": "phone_call_initiated", "source": source_text})
+        elif command == "confirm":
+            emit({"type": "command_confirmed", "source": source_text})
 
     voice_listener = VoiceListener(on_command)
     if args.voice:
@@ -81,6 +180,15 @@ def main():
     print(f"[logic] decision engine running, polling {STATE_PATH} every {args.interval}s. Ctrl+C to stop.")
     try:
         while True:
+            now = time.monotonic()
+
+            if song_player["playing"]:
+                song_player["elapsed"] += now - song_player["last_tick"]
+                track = current_track()
+                if song_player["elapsed"] >= track["duration"]:
+                    skip_track()
+            song_player["last_tick"] = now
+
             state = read_json(STATE_PATH, default=None)
             if state is not None:
                 current_state = state
@@ -94,11 +202,22 @@ def main():
                 elif not state.get("present"):
                     last_face_id = "__unset__"
 
+                emotion = state.get("emotion", "calm")
+                if state.get("present") and emotion != last_emotion:
+                    playlist = EMOTION_PLAYLISTS.get(emotion, "Focus Flow")
+                    switch_playlist(playlist)
+                    last_emotion = emotion
+                elif not state.get("present"):
+                    last_emotion = "__unset__"
+
                 notifications.tick(state, emit)
                 escalation.tick(state, emit)
 
                 gesture_doc = read_json(GESTURE_PATH, default=None)
+                gesture_val = (gesture_doc or {}).get("gesture")
                 gestures.tick(state, gesture_doc, on_command)
+                if gesture_val:
+                    emit({"type": "gesture_detected", "gesture": gesture_val})
 
             control = read_json(CONTROL_PATH, default={})
             occupant_watch.tick(current_state, control, emit)

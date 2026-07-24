@@ -196,7 +196,10 @@ html, body {
 
 /* Escalation */
 #escalation-card { border-color: var(--danger); }
-#escalation-text { color: var(--danger); font-weight: 600; }
+#escalation-card.warn-alarm { border-color: var(--warn); }
+#escalation-card.warn-alarm #escalation-text { color: var(--warn); }
+#escalation-card.danger-alarm #escalation-text { color: var(--danger); }
+#escalation-text { font-weight: 600; }
 #escalation-countdown {
   margin-top: 8px;
   font-size: 1.5rem;
@@ -461,3 +464,149 @@ html, body {
 }
 #enroll-start-btn { border-color: var(--ok); color: var(--ok); }
 #enroll-stop-btn { border-color: var(--danger); color: var(--danger); }
+
+/* Command reference card */
+.cmd-group { margin-bottom: 10px; }
+.cmd-group:last-child { margin-bottom: 0; }
+.cmd-group-title {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--card-border);
+}
+.cmd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 0.82rem;
+}
+.cmd-keys {
+  color: var(--accent);
+  font-weight: 600;
+  font-family: "Cascadia Code", "Consolas", monospace;
+}
+.cmd-desc { color: var(--text-dim); }
+
+/* Song Player */
+#player-card { text-align: center; }
+#player-art {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, hsl(var(--ambient-hue), 70%, 30%), hsl(calc(var(--ambient-hue) + 40), 60%, 25%));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: background 0.8s ease;
+}
+#player-track {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#player-artist {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin-bottom: 12px;
+}
+#player-progress-wrap { margin-bottom: 10px; }
+#player-progress-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+#player-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s linear;
+}
+#player-time {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+#player-controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+#player-controls button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+#player-controls button:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+#player-controls button.playing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#player-playlist-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+/* Toast notifications for gesture/voice/command feedback */
+#toast-container {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  background: rgba(18, 22, 31, 0.95);
+  border: 2px solid var(--accent);
+  color: var(--text);
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateX(40px);
+  animation: toast-in 0.3s ease forwards, toast-out 0.3s ease 3s forwards;
+}
+.toast.warn { border-color: var(--warn); }
+.toast.ok { border-color: var(--ok); }
+.toast.danger { border-color: var(--danger); }
+
+@keyframes toast-in {
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateX(40px); }
+}

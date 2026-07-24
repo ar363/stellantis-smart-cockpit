@@ -16,7 +16,6 @@
   const themeSwatch = document.getElementById("profile-theme-swatch");
   const tempEl = document.getElementById("profile-temp");
   const playlistEl = document.getElementById("profile-playlist");
-  const notifList = document.getElementById("notif-list");
   const escalationCard = document.getElementById("escalation-card");
   const escalationText = document.getElementById("escalation-text");
   const escalationCountdown = document.getElementById("escalation-countdown");
@@ -28,9 +27,80 @@
   const pulloverDismissBtn = document.getElementById("pullover-dismiss-btn");
   const clockEl = document.getElementById("clock");
   const autoToggleBtn = document.getElementById("auto-toggle-btn");
+  const toastContainer = document.getElementById("toast-container");
 
-  let notifications = [];
   let ignitionOff = false;
+
+  // ---------- Song Player ----------
+
+  const playerArt = document.getElementById("player-art");
+  const playerTrack = document.getElementById("player-track");
+  const playerArtist = document.getElementById("player-artist");
+  const playerProgressFill = document.getElementById("player-progress-fill");
+  const playerElapsed = document.getElementById("player-elapsed");
+  const playerDuration = document.getElementById("player-duration");
+  const playerPlayBtn = document.getElementById("player-play");
+  const playerPrevBtn = document.getElementById("player-prev");
+  const playerNextBtn = document.getElementById("player-next");
+  const playerPlaylistLabel = document.getElementById("player-playlist-label");
+
+  let songState = { playing: false, elapsed: 0, duration: 0 };
+  let progressTimer = null;
+
+  function fmtTime(s) {
+    s = Math.max(0, Math.floor(s));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function renderSongPlayer(s) {
+    songState = s;
+    playerTrack.textContent = s.title || "\u2014";
+    playerArtist.textContent = s.artist || "\u2014";
+    playerDuration.textContent = fmtTime(s.duration || 0);
+    playerElapsed.textContent = fmtTime(s.elapsed || 0);
+    playerProgressFill.style.width = s.duration ? ((s.elapsed / s.duration) * 100) + "%" : "0%";
+    playerPlayBtn.textContent = s.playing ? "\u23F8" : "\u25B6";
+    playerPlayBtn.classList.toggle("playing", s.playing);
+    if (s.playlist) playerPlaylistLabel.textContent = s.playlist;
+  }
+
+  function tickPlayerProgress() {
+    if (!songState.playing) return;
+    songState.elapsed = Math.min(songState.elapsed + 0.5, songState.duration);
+    playerElapsed.textContent = fmtTime(songState.elapsed);
+    playerProgressFill.style.width = songState.duration
+      ? ((songState.elapsed / songState.duration) * 100) + "%" : "0%";
+  }
+
+  function sendControl(patch) {
+    if (window.Live && window.Live.isActive()) {
+      window.Live.setControl(patch);
+    }
+  }
+
+  playerPlayBtn.addEventListener("click", () => sendControl({ song_action: "toggle_playback" }));
+  playerNextBtn.addEventListener("click", () => sendControl({ song_action: "next_track" }));
+  playerPrevBtn.addEventListener("click", () => sendControl({ song_action: "prev_track" }));
+
+  // ---------- Toast ----------
+
+  const GESTURE_ICONS = {
+    open_palm: "\u270B",
+    thumbs_up: "\uD83D\uDC4D",
+    fist: "\u270A",
+    peace: "\u270C",
+    swipe_left: "\u2B05",
+    swipe_right: "\u27A1",
+    swipe_up: "\u2B06",
+  };
+
+  function showToast(text, variant) {
+    const el = document.createElement("div");
+    el.className = "toast" + (variant ? " " + variant : "");
+    el.textContent = text;
+    toastContainer.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
 
   // ---------- DriverState ----------
 
@@ -42,11 +112,8 @@
     const unsafe = state.present && (state.drowsy || state.distracted);
     setAlarmVisual(unsafe);
     if (!unsafe) {
-      hideEscalation(); // backend stops emitting "alarm" once safe again, but never tells us to clear it -- do it here
+      hideEscalation();
     }
-    // Pull-over is intentionally NOT cleared here: once it starts, it plays
-    // to completion on its own timer regardless of the driver's state
-    // changing mid-animation (see finishPullover()).
   }
 
   function setTile(id, text, okCond, alertCond) {
@@ -64,12 +131,12 @@
   }
 
   function pickAvatar(state) {
-    if (!state.present) return "🪑";
-    if (state.drowsy) return "😴";
-    if (state.distracted) return "👀";
-    if (state.emotion === "stressed") return "😣";
-    if (state.emotion === "tired") return "🥱";
-    return "🙂";
+    if (!state.present) return "\uD83E\uDE91";
+    if (state.drowsy) return "\uD83D\uDE34";
+    if (state.distracted) return "\uD83D\uDC40";
+    if (state.emotion === "stressed") return "\uD83D\uDE23";
+    if (state.emotion === "tired") return "\uD83E\uDD71";
+    return "\uD83D\uDE42";
   }
 
   function renderAvatar(state) {
@@ -77,7 +144,7 @@
     avatarNameEl.textContent = !state.present
       ? "No driver"
       : PROFILE_LABEL[state.face_id] || "Unrecognized driver";
-    avatarEmotionEl.textContent = state.present ? state.emotion : "—";
+    avatarEmotionEl.textContent = state.present ? state.emotion : "\u2014";
   }
 
   function renderCameraLabel(state) {
@@ -96,7 +163,7 @@
     document.documentElement.style.setProperty("--ambient-hue", hue);
   }
 
-  // ---------- Alarm (dashboard's own drowsy/distracted reaction) ----------
+  // ---------- Alarm ----------
 
   let audioCtx = null;
   let alarmOsc = null;
@@ -139,10 +206,7 @@
     if (!alarmSoundOn) return;
     alarmSoundOn = false;
     clearTimeout(alarmPulseTimer);
-    if (alarmOsc) {
-      alarmOsc.stop();
-      alarmOsc.disconnect();
-    }
+    if (alarmOsc) { alarmOsc.stop(); alarmOsc.disconnect(); }
     if (alarmGain) alarmGain.disconnect();
     alarmOsc = null;
     alarmGain = null;
@@ -161,12 +225,6 @@
       case "profile_settings":
         renderProfile(evt);
         break;
-      case "notification_hold":
-        addNotification(evt.id, evt.message, "held");
-        break;
-      case "notification_release":
-        releaseNotification(evt.id, evt.message);
-        break;
       case "alarm":
         showEscalation(evt.reason, evt.seconds_remaining);
         break;
@@ -175,10 +233,22 @@
         startPullover();
         break;
       case "pull_over_cancelled":
-        // Deliberately ignored: once the pull-over takeover starts, it plays
-        // through to completion and only then hands back control -- see
-        // finishPullover(). A quick recovery shouldn't yank the animation.
         break;
+      case "song_state":
+        renderSongPlayer(evt);
+        break;
+      case "phone_call_initiated":
+        showToast("\uD83D\uDCDE Calling\u2026", "warn");
+        break;
+      case "command_confirmed":
+        showToast("\u2714 Confirmed", "ok");
+        break;
+      case "gesture_detected": {
+        const icon = GESTURE_ICONS[evt.gesture] || "\uD83D\uDD90";
+        const label = evt.gesture.replace(/_/g, " ");
+        showToast(icon + " " + label, "ok");
+        break;
+      }
       default:
         console.warn("Unknown logic event", evt);
     }
@@ -186,34 +256,8 @@
 
   function renderProfile(p) {
     themeSwatch.style.background = p.theme || "#666";
-    tempEl.textContent = p.temperature != null ? `${p.temperature}°F` : "—";
-    playlistEl.textContent = p.playlist || "—";
-  }
-
-  function addNotification(id, message, status) {
-    notifications.unshift({ id, message, status });
-    renderNotifications();
-  }
-
-  function releaseNotification(id, message) {
-    const existing = notifications.find((n) => n.id === id);
-    if (existing) existing.status = "released";
-    else notifications.unshift({ id, message, status: "released" });
-    renderNotifications();
-  }
-
-  function renderNotifications() {
-    notifList.innerHTML = "";
-    if (!notifications.length) {
-      notifList.innerHTML = '<li class="notif-empty">No notifications</li>';
-      return;
-    }
-    notifications.slice(0, 6).forEach((n) => {
-      const li = document.createElement("li");
-      li.className = n.status;
-      li.textContent = `${n.status === "held" ? "⏸ Held — " : "✓ "}${n.message}`;
-      notifList.appendChild(li);
-    });
+    tempEl.textContent = p.temperature != null ? p.temperature + "\u00B0F" : "\u2014";
+    playlistEl.textContent = p.playlist || "\u2014";
   }
 
   let countdownTimer = null;
@@ -221,7 +265,12 @@
 
   function showEscalation(reason, secondsRemaining) {
     escalationCard.hidden = false;
-    escalationText.textContent = `ALARM — ${reason || "attention required"}. Escalating if unresponsive…`;
+    const isOccupant = reason === "occupant_left_behind";
+    escalationCard.classList.toggle("warn-alarm", isOccupant);
+    escalationCard.classList.toggle("danger-alarm", !isOccupant);
+    escalationText.textContent = isOccupant
+      ? "\u26A0\uFE0F Occupant may still be in vehicle"
+      : "ALARM \u2014 " + (reason || "attention required") + ". Escalating if unresponsive\u2026";
 
     clearInterval(countdownTimer);
     countdownTimer = null;
@@ -239,33 +288,29 @@
   function tickCountdown() {
     const remaining = Math.max(0, (countdownDeadline - performance.now()) / 1000);
     escalationCountdownValue.textContent = remaining.toFixed(1);
-    if (remaining <= 0) {
-      clearInterval(countdownTimer);
-      countdownTimer = null;
-    }
+    if (remaining <= 0) { clearInterval(countdownTimer); countdownTimer = null; }
   }
 
   function hideEscalation() {
     escalationCard.hidden = true;
+    escalationCard.classList.remove("warn-alarm", "danger-alarm");
     escalationCountdown.hidden = true;
     clearInterval(countdownTimer);
     countdownTimer = null;
     countdownDeadline = null;
   }
 
-  // ---------- Pull-over takeover popup (first-person road cam + top-down, FSD-style) ----------
-  // Both views steer the same direction (right) so the road cam and the
-  // overhead view read as one consistent maneuver.
+  // ---------- Pull-over takeover popup ----------
 
   const PULLOVER_DURATION_MS = 3200;
-  const PULLOVER_DRIVE_END = 0.25; // fraction of duration spent driving straight before steering
-  const PULLOVER_STEER_END = 0.8; // fraction of duration by which the car has reached the shoulder
+  const PULLOVER_DRIVE_END = 0.25;
+  const PULLOVER_STEER_END = 0.8;
 
   let pulloverAnimId = null;
   let pulloverStart = null;
 
   function startPullover() {
-    if (pulloverStart != null) return; // already mid-animation -- let it finish, don't restart
+    if (pulloverStart != null) return;
     pulloverModalBackdrop.hidden = false;
     pulloverDismissBtn.hidden = true;
     pulloverStart = performance.now();
@@ -273,8 +318,6 @@
     drawPullover();
   }
 
-  // Only called from the driver clicking "Resume Driving" -- the popup does
-  // not auto-close once stopped, it waits for an explicit acknowledgement.
   function finishPullover() {
     pulloverModalBackdrop.hidden = true;
     cancelAnimationFrame(pulloverAnimId);
@@ -283,9 +326,6 @@
   }
   pulloverDismissBtn.addEventListener("click", () => {
     finishPullover();
-    // Tell whichever backend is active to actually clear its pulled_over
-    // latch -- otherwise a still-unsafe driver would never get a second
-    // pull_over, even though the popup looks closed.
     if (window.Live && window.Live.isActive()) {
       window.Live.setControl({ dismiss_alarm_at: Date.now() / 1000 });
     } else if (window.Mock) {
@@ -305,11 +345,6 @@
 
   function drawPulloverFirstPerson(ctx, w, h, elapsed, steerEased, stopped) {
     const horizonY = h * 0.38;
-    // Motion-parallax split: the far field (vanishing point, near the
-    // horizon) barely moves for a small heading change, while the near
-    // field (road right in front of the hood) sweeps left a lot more --
-    // that gap in speed is what reads as "the car is translating left"
-    // instead of "the road is tilting in place".
     const vx = w / 2 - steerEased * (w * 0.1);
     const laneCenterBottom = w / 2 - steerEased * (w * 0.42);
 
@@ -363,7 +398,6 @@
     ctx.lineTo(laneCenterBottom - roadHalfBottom, h);
     ctx.stroke();
 
-    // Cockpit A-pillars + dash
     ctx.fillStyle = "#05070b";
     ctx.beginPath();
     ctx.moveTo(0, h);
@@ -382,7 +416,7 @@
 
     ctx.save();
     ctx.translate(w / 2, h * 0.97);
-    ctx.rotate(steerEased * 0.35); // steering right, matches the road cam drift
+    ctx.rotate(steerEased * 0.35);
     ctx.strokeStyle = "#3a4256";
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -399,7 +433,7 @@
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = "#1c2230";
     ctx.fillRect(40, 0, w - 80, h);
-    ctx.fillStyle = "#232a1c"; // shoulder -- matches the road cam's rightward drift
+    ctx.fillStyle = "#232a1c";
     ctx.fillRect(w - 40, 0, 40, h);
 
     const scrollSpeed = stopped ? 0 : 1 - steerEased * 0.85;
@@ -426,12 +460,7 @@
     const blinkOn = Math.floor(elapsed / 300) % 2 === 0;
     if (blinkOn) {
       ctx.fillStyle = "#ffb020";
-      [
-        [x + 4, y + 6],
-        [x + carW - 4, y + 6],
-        [x + 4, y + carH - 6],
-        [x + carW - 4, y + carH - 6],
-      ].forEach(([cx, cy]) => {
+      [[x + 4, y + 6], [x + carW - 4, y + 6], [x + 4, y + carH - 6], [x + carW - 4, y + carH - 6]].forEach(([cx, cy]) => {
         ctx.beginPath();
         ctx.arc(cx, cy, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -467,12 +496,10 @@
     drawPulloverTopDown(topCtx, pulloverCanvasTop.width, pulloverCanvasTop.height, elapsed, steerEased, stopped);
 
     pulloverBanner.textContent = stopped
-      ? "Stopped on shoulder — hazards on. Resume when ready."
-      : "Pulling over — taking control…";
+      ? "Stopped on shoulder \u2014 hazards on. Resume when ready."
+      : "Pulling over \u2014 taking control\u2026";
     pulloverDismissBtn.hidden = !stopped;
 
-    // Keeps rendering (hazard blink, etc.) indefinitely once stopped --
-    // never auto-closes. Only finishPullover() via the dismiss button ends it.
     pulloverAnimId = requestAnimationFrame(drawPullover);
   }
 
@@ -484,13 +511,16 @@
   setInterval(tickClock, 1000);
   tickClock();
 
+  // Player progress ticker
+  setInterval(tickPlayerProgress, 500);
+
   // ---------- Demo controls ----------
 
   document.querySelectorAll("#demo-controls button").forEach((btn) => {
     btn.addEventListener("click", () => {
       const action = btn.dataset.action;
       const liveActive = window.Live && window.Live.isActive();
-      if (liveActive && btn.hasAttribute("data-mock-only")) return; // disabled + inert in live mode
+      if (liveActive && btn.hasAttribute("data-mock-only")) return;
       if (!liveActive && action !== "toggle-auto" && window.Mock.isAutoRunning()) {
         window.Mock.toggleAutoDemo();
         autoToggleBtn.textContent = "Resume Auto-Demo";
@@ -504,8 +534,6 @@
         case "switch-profile": window.Mock.switchProfile(); break;
         case "fire-alarm": window.Mock.fireAlarm(); break;
         case "fire-pullover": window.Mock.firePullOver(); break;
-        case "fire-hold": window.Mock.fireHold(); break;
-        case "fire-release": window.Mock.fireRelease(); break;
         case "toggle-ignition": {
           ignitionOff = !ignitionOff;
           btn.classList.toggle("active", ignitionOff);
@@ -528,7 +556,6 @@
   });
 
   // ---------- Exports ----------
-  // boot.js decides whether to start window.Live or window.Mock against these.
 
   window.applyDriverState = applyDriverState;
   window.applyLogicEvent = applyLogicEvent;
