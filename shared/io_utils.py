@@ -14,6 +14,7 @@ Layout (all under shared/):
 import json
 import os
 import tempfile
+import time
 from pathlib import Path
 
 SHARED_DIR = Path(__file__).parent
@@ -21,6 +22,44 @@ STATE_PATH = SHARED_DIR / "state.json"
 GESTURE_PATH = SHARED_DIR / "gesture.json"
 EVENTS_PATH = SHARED_DIR / "events.jsonl"
 CONTROL_PATH = SHARED_DIR / "control.json"
+PREVIEW_PATH = SHARED_DIR / "preview.jpg"
+ENROLL_CONTROL_PATH = SHARED_DIR / "enroll_control.json"
+ENROLL_STATUS_PATH = SHARED_DIR / "enroll_status.json"
+
+# On Windows, os.replace() onto an existing destination can transiently raise
+# PermissionError/WinError 5 if something else (antivirus, an indexer, a
+# reader that just barely still has the old file open) has it locked for a
+# few milliseconds. That's routine here given how often these files are
+# polled -- retry briefly instead of taking down the whole perception/logic
+# process over it.
+_REPLACE_RETRIES = 6
+_REPLACE_RETRY_DELAY_S = 0.02
+
+
+def _replace_with_retry(tmp_path, path):
+    for attempt in range(_REPLACE_RETRIES):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if attempt == _REPLACE_RETRIES - 1:
+                raise
+            time.sleep(_REPLACE_RETRY_DELAY_S * (attempt + 1))
+
+
+def atomic_write_bytes(path, data: bytes):
+    """Same atomicity guarantee as atomic_write_json, for the JPEG preview frame."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), prefix=".tmp-", suffix=".jpg")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        _replace_with_retry(tmp_path, path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
 
 def atomic_write_json(path, data):
@@ -31,7 +70,7 @@ def atomic_write_json(path, data):
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f)
-        os.replace(tmp_path, path)
+        _replace_with_retry(tmp_path, path)
     except Exception:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
