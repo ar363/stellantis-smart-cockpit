@@ -1,9 +1,67 @@
 # Smart Cockpit (COC-04)
 
-A live "cockpit brain" that watches the driver via webcam to make the car safer and more personal.
+A real-time driver monitoring and safety system that uses only a laptop webcam to detect drowsiness, distraction, and emotion — then personalizes the cabin accordingly.
 
-See `TEAM_PROMPT.md` for role assignments and scope. See `shared/schema.py` for the `DriverState` contract
-that connects `/perception`, `/dashboard`, and `/logic`.
+## Overview
+
+Smart Cockpit is a three-process architecture (perception, logic, bridge) that captures webcam frames at 12fps, runs MediaPipe-based facial analysis, and drives a live browser dashboard with safety alerts, face recognition, and emotion-based personalization. Built for a Stellantis hackathon, it demonstrates how a camera-only system can replicate features found in production ADAS platforms.
+
+## Architecture
+
+```
+┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────────────┐
+│  Perception          │      │  Logic               │      │  Bridge Server       │
+│  (capture.py)        │      │  (engine.py)         │      │  (server.py)         │
+│                      │      │                      │      │                      │
+│  Webcam → MediaPipe  │─────▶│  DriverState →       │─────▶│  REST API + Static   │
+│  Face landmarks      │      │  Escalation FSM      │      │  Files               │
+│  EAR / Head-pose     │      │  Notification gate   │      │  /api/state          │
+│  LBPH recognition    │      │  Gesture/voice policy│      │  /api/events         │
+│  Emotion heuristic   │      │  Song player         │      │  /api/enroll/*       │
+│                      │      │                      │      │  /api/control        │
+│  Writes: state.json  │      │  Reads: state.json   │      │  Reads: state.json   │
+│          gesture.json│      │  Writes: events.jsonl│      │        events.jsonl  │
+│          events.jsonl│      │        control.json  │      │        preview.jpg   │
+│          control.json│      │                      │      │                      │
+│          preview.jpg │      │                      │      │                      │
+└─────────────────────┘      └─────────────────────┘      └─────────────────────┘
+          │                            │                            │
+          └────────── shared/ IPC (atomic JSON writes) ─────────────┘
+```
+
+All three processes communicate via atomic file writes (`shared/io_utils.py`) with retry logic for Windows file locks. The `DriverState` TypedDict (`shared/schema.py`) is the single contract between modules.
+
+## Key Features
+
+**Core:**
+- Real-time drowsiness detection via Eye Aspect Ratio (EAR) with hysteresis and rolling-window smoothing
+- Real-time distraction detection via solvePnP head-pose estimation with adaptive baseline auto-calibration
+- Emotion classification (calm/stressed/tired) from landmark ratios driving ambient color shifts
+- LBPH face recognition for 2 profiles with web-driven enrollment (~8s end-to-end retrain + hot-swap)
+- Alarm escalation state machine: drowsy/distracted → repeated alerts → FSD-style pull-over animation after 3s unresponsive
+- Notification hold/release engine: suppresses non-urgent alerts while driver is distracted
+- Per-driver personalization (theme, temperature, playlist) loaded on face recognition
+
+**Stretch:**
+- Hand gesture control (peace → prev track, thumbs up → next track) with multi-frame stability gating
+- Voice commands ("dismiss", "next song", "skip", "pause") with eyes-on-road enforcement
+- Automated pull-over animation (Canvas 2D dual-view: first-person + top-down with hazard blink)
+- Occupant-left-behind detection with configurable timer and Windows toast notification
+- Emotion-driven automatic playlist switching with ambient background color transitions
+
+## Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| **Computer Vision** | OpenCV, MediaPipe Tasks API (FaceLandmarker, HandLandmarker) |
+| **Face Recognition** | OpenCV LBPH Face Recognizer |
+| **Head Pose** | cv2.solvePnP (Perspective-n-Point) with 3D face model |
+| **Voice** | SpeechRecognition + PyAudio + Google Web Speech API |
+| **Backend** | Python http.server.ThreadingHTTPServer (zero-dependency) |
+| **Frontend** | Vanilla JS, Canvas 2D API, Web Audio API, CSS custom properties |
+| **IPC** | Atomic file writes (temp file + os.replace), JSONL append-only event log |
+| **Math** | NumPy |
+| **OS Integration** | win10toast (Windows toast notifications) |
 
 ## Run the full demo
 ```
