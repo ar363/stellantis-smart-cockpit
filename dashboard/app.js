@@ -30,6 +30,7 @@
   const toastContainer = document.getElementById("toast-container");
 
   let ignitionOff = false;
+  let lastOccupantAlarmAt = 0;
 
   // ---------- Song Player ----------
 
@@ -111,7 +112,13 @@
     const unsafe = state.present && (state.drowsy || state.distracted);
     setAlarmVisual(unsafe);
     if (!unsafe) {
-      hideEscalation();
+      const now = performance.now() / 1000;
+      // Keep occupant-left-behind card visible for 2s after last alarm, so it doesn't
+      // flash in/out when logic repeats the alarm at 1.5s intervals.
+      const withinOccupantGrace = (now - lastOccupantAlarmAt) < 2.0;
+      if (!withinOccupantGrace) {
+        hideEscalation();
+      }
     }
   }
 
@@ -225,6 +232,9 @@
         renderProfile(evt);
         break;
       case "alarm":
+        if (evt.reason === "occupant_left_behind") {
+          lastOccupantAlarmAt = performance.now() / 1000;
+        }
         showEscalation(evt.reason, evt.seconds_remaining);
         break;
       case "pull_over":
