@@ -3,3 +3,4 @@
 sounddevice>=0.5
 SpeechRecognition>=3.10
 pyaudio>=0.2.14
+win10toast>=0.34  # occupant-left-behind Windows notifications

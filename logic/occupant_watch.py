@@ -11,6 +11,12 @@ without needing a contract change.
 
 import time
 
+try:
+    from win10toast import ToastNotifier
+    NOTIFY_AVAILABLE = True
+except ImportError:
+    NOTIFY_AVAILABLE = False
+
 TIMER_S = 8.0  # demo-scale; a real car would use minutes
 REPEAT_S = 1.5  # repeat alarm every 1.5s while occupant is still present
 
@@ -19,6 +25,12 @@ class OccupantWatch:
     def __init__(self):
         self._ignition_off_at = None
         self._last_alarm_emit = 0.0
+        self._notifier = None
+        if NOTIFY_AVAILABLE:
+            try:
+                self._notifier = ToastNotifier()
+            except Exception:
+                pass
 
     def tick(self, state, control, emit):
         ignition_off = bool(control.get("ignition_off"))
@@ -36,3 +48,13 @@ class OccupantWatch:
                 now - self._last_alarm_emit >= REPEAT_S):
             emit({"type": "alarm", "reason": "occupant_left_behind"})
             self._last_alarm_emit = now
+            if self._notifier and now - self._ignition_off_at < 10:
+                try:
+                    self._notifier.show_toast(
+                        "Occupant Alert",
+                        "Occupant may still be in vehicle",
+                        duration=5,
+                        threaded=True
+                    )
+                except Exception:
+                    pass
