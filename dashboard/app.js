@@ -78,17 +78,23 @@
     }
   }
 
-  playerPlayBtn.addEventListener("click", () => sendControl({ song_action: "toggle_playback" }));
-  playerNextBtn.addEventListener("click", () => sendControl({ song_action: "next_track" }));
-  playerPrevBtn.addEventListener("click", () => sendControl({ song_action: "prev_track" }));
+  function sendSongAction(action) {
+    sendControl({ song_action: action, song_action_at: Date.now() / 1000 });
+  }
+
+  playerPlayBtn.addEventListener("click", () => sendSongAction("toggle_playback"));
+  playerNextBtn.addEventListener("click", () => sendSongAction("next_track"));
+  playerPrevBtn.addEventListener("click", () => sendSongAction("prev_track"));
 
   // ---------- Toast ----------
 
   const GESTURE_ICONS = {
     open_palm: "\u270B",
     thumbs_up: "\uD83D\uDC4D",
+    thumbs_down: "\uD83D\uDC4E",
     fist: "\u270A",
     peace: "\u270C",
+    wave: "\uD83D\uDC4B",
     swipe_left: "\u2B05",
     swipe_right: "\u27A1",
     swipe_up: "\u2B06",

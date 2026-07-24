@@ -99,6 +99,7 @@ def main():
     last_face_id = "__unset__"
     current_state = {"eyes_on_road": True}
     last_dismiss_at = None
+    last_song_action_at = None
     last_emotion = "__unset__"
 
     EMOTION_PLAYLISTS = {
@@ -231,6 +232,15 @@ def main():
             if dismiss_at is not None and dismiss_at != last_dismiss_at:
                 last_dismiss_at = dismiss_at
                 escalation.acknowledge(emit)
+
+            # Dashboard's Now Playing card posts {song_action, song_action_at}
+            # via /api/control -- song_action_at is a per-click nonce so a
+            # repeated click of the same button (e.g. "next" twice) isn't
+            # deduped away like dismiss_alarm_at above.
+            song_action_at = control.get("song_action_at")
+            if song_action_at is not None and song_action_at != last_song_action_at:
+                last_song_action_at = song_action_at
+                on_command(control.get("song_action"), "dashboard:player")
 
             time.sleep(args.interval)
     except KeyboardInterrupt:

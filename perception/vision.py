@@ -176,36 +176,36 @@ def classify_emotion(ear, mar, brow, yawn_active):
 
 def classify_gesture(points):
     """Hackathon-grade gesture classifier. Detects: open_palm, thumbs_up,
-    thumbs_down, peace, fist, wave. Orientation-dependent (assumes upright
-    hand facing camera) -- good enough for a demo, not production."""
+    thumbs_down, peace, fist, wave. Finger-extension is judged by distance
+    from the wrist rather than raw up/down position, so it isn't limited to
+    a perfectly upright hand -- still a first pass, not production."""
+    wrist = points[_WRIST]
 
     def extended(tip, pip):
-        return points[tip][1] < points[pip][1]
+        return _dist(points[tip], wrist) > _dist(points[pip], wrist) * 1.15
 
     fingers = [extended(tip, pip) for tip, pip in _FINGER_TIPS_PIPS]
-    thumb_up_axis = points[_THUMB_TIP][1] < points[_WRIST][1]
-    thumb_extended = abs(points[_THUMB_TIP][0] - points[_THUMB_IP][0]) > abs(
-        points[_WRIST][0] - points[_THUMB_IP][0]
-    ) * 0.3
-    thumb_down = points[_THUMB_TIP][1] > points[_WRIST][1]
+    num_extended = sum(fingers)
 
-    if all(fingers) and thumb_extended:
+    thumb_tip, thumb_ip = points[_THUMB_TIP], points[_THUMB_IP]
+    thumb_out = _dist(thumb_tip, wrist) > _dist(thumb_ip, wrist) * 1.15
+    # Margin scaled to hand size (wrist-to-middle-knuckle) so "up" vs "down"
+    # isn't decided by a sub-pixel tie when the thumb is roughly level.
+    axis_margin = _dist(points[9], wrist) * 0.15
+    thumb_up = thumb_tip[1] < wrist[1] - axis_margin
+    thumb_down = thumb_tip[1] > wrist[1] + axis_margin
+
+    if num_extended >= 4:
         return "open_palm"
-    if not any(fingers) and thumb_up_axis and not thumb_down:
-        return "thumbs_up"
-    if not any(fingers) and thumb_down:
-        return "thumbs_down"
-    if not any(fingers) and not thumb_up_axis:
+    if num_extended == 0:
+        if thumb_out and thumb_up:
+            return "thumbs_up"
+        if thumb_out and thumb_down:
+            return "thumbs_down"
         return "fist"
-
-    index_up = fingers[0]
-    middle_up = fingers[1]
-    ring_down = not fingers[2]
-    pinky_down = not fingers[3]
-    if index_up and middle_up and ring_down and pinky_down:
+    if fingers[0] and fingers[1] and not fingers[2] and not fingers[3]:
         return "peace"
-
-    if sum(fingers) >= 3:
+    if num_extended >= 2:
         return "wave"
 
     return None

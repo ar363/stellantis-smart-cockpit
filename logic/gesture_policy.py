@@ -6,16 +6,16 @@ the road, per the team contract ("both must check eyes_on_road ... and
 ignore input if false").
 
 Gesture mappings (swipe-based for song control):
-  swipe_right -> next_track
-  swipe_left  -> prev_track
+  swipe_left  -> next_track
+  swipe_right -> prev_track
   swipe_up    -> toggle_playback
   open_palm   -> dismiss_alarm
   peace       -> dismiss_alarm (alt)
 """
 
 GESTURE_COMMANDS = {
-    "swipe_right": "next_track",
-    "swipe_left": "prev_track",
+    "swipe_left": "next_track",
+    "swipe_right": "prev_track",
     "swipe_up": "toggle_playback",
     "open_palm": "dismiss_alarm",
     "peace": "dismiss_alarm",
